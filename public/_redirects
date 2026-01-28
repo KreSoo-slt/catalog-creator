@@ -1,0 +1,5 @@
+# Netlify Redirects
+# Этот файл обеспечивает корректную работу SPA на Netlify
+# Все маршруты перенаправляются на index.html
+
+/*    /index.html   200
