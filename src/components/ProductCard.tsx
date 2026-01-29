@@ -3,7 +3,7 @@ import { ShoppingCart, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { Product } from '@/lib/supabase';
-import { cn } from '@/lib/utils';
+import { useCart } from '@/hooks/useCart';
 
 interface ProductCardProps {
   product: Product;
@@ -15,19 +15,32 @@ const formatPrice = (price: number) => {
 };
 
 export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
+  const { addItem } = useCart();
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      img: product.img,
+    });
+  };
+
   if (viewMode === 'compact') {
     return (
       <article className="group bg-card rounded-lg border border-border overflow-hidden transition-all duration-200 hover:shadow-md hover:border-primary/20">
-        <Link to={`/product/${product.slug}`} className="flex items-center gap-3 p-3">
-          <div className="w-16 h-16 rounded-md overflow-hidden shrink-0">
+        <div className="flex items-center gap-3 p-3">
+          <Link to={`/product/${product.slug}`} className="w-16 h-16 rounded-md overflow-hidden shrink-0">
             <OptimizedImage
               src={product.img}
               alt={product.name}
               className="w-full h-full"
               fallback="/placeholder.svg"
             />
-          </div>
-          <div className="flex-1 min-w-0">
+          </Link>
+          <Link to={`/product/${product.slug}`} className="flex-1 min-w-0">
             <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
               {product.name}
             </h3>
@@ -37,11 +50,16 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
                 <span className="text-xs text-muted-foreground">• {product.inBox}</span>
               )}
             </div>
+          </Link>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="text-right">
+              <div className="font-bold text-primary">{formatPrice(product.price)}</div>
+            </div>
+            <Button size="sm" variant="outline" onClick={handleAddToCart}>
+              <ShoppingCart className="h-4 w-4" />
+            </Button>
           </div>
-          <div className="text-right shrink-0">
-            <div className="font-bold text-primary">{formatPrice(product.price)}</div>
-          </div>
-        </Link>
+        </div>
       </article>
     );
   }
@@ -88,10 +106,13 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
             </p>
           )}
 
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex items-center justify-between mt-3 gap-2">
             <div className="font-bold text-lg text-primary">
               {formatPrice(product.price)}
             </div>
+            <Button size="sm" variant="outline" onClick={handleAddToCart}>
+              <ShoppingCart className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </Link>

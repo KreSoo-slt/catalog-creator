@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Package, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -10,6 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ITEMS_OPTIONS = [24, 48, 96, 192];
+
+type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'default', label: 'По умолчанию' },
+  { value: 'price-asc', label: 'Цена: по возрастанию' },
+  { value: 'price-desc', label: 'Цена: по убыванию' },
+  { value: 'name-asc', label: 'Название: А-Я' },
+  { value: 'name-desc', label: 'Название: Я-А' },
+];
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,20 +31,24 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   const [itemsPerPage, setItemsPerPage] = useState(48);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortOption>('default');
 
   const searchQuery = searchParams.get('search') || '';
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategories, selectedSubcategories, selectedManufacturers, searchQuery, itemsPerPage]);
+  }, [selectedCategories, selectedSubcategories, selectedManufacturers, searchQuery, itemsPerPage, sortBy]);
 
-  // Filter products
+  // Filter and sort products
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      // Category filter (multi-select)
-      if (selectedCategories.length > 0 && !selectedCategories.includes(product.category)) {
-        return false;
+    let result = products.filter((product) => {
+      // Category filter (multi-select) - handle "Без категории"
+      if (selectedCategories.length > 0) {
+        const productCategory = product.category || 'Без категории';
+        if (!selectedCategories.includes(productCategory)) {
+          return false;
+        }
       }
 
       // Subcategory filter (multi-select)
@@ -42,7 +56,7 @@ const Index = () => {
         return false;
       }
 
-      // Manufacturer filter (multi-select) - uses category or manufacturer field
+      // Manufacturer filter (multi-select)
       if (selectedManufacturers.length > 0) {
         const productManufacturer = product.manufacturer || product.category;
         if (!productManufacturer || !selectedManufacturers.includes(productManufacturer)) {
@@ -65,7 +79,25 @@ const Index = () => {
 
       return true;
     });
-  }, [products, selectedCategories, selectedSubcategories, selectedManufacturers, searchQuery]);
+
+    // Sort
+    switch (sortBy) {
+      case 'price-asc':
+        result = [...result].sort((a, b) => (a.price || 0) - (b.price || 0));
+        break;
+      case 'price-desc':
+        result = [...result].sort((a, b) => (b.price || 0) - (a.price || 0));
+        break;
+      case 'name-asc':
+        result = [...result].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
+        break;
+      case 'name-desc':
+        result = [...result].sort((a, b) => (b.name || '').localeCompare(a.name || '', 'ru'));
+        break;
+    }
+
+    return result;
+  }, [products, selectedCategories, selectedSubcategories, selectedManufacturers, searchQuery, sortBy]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -78,6 +110,7 @@ const Index = () => {
     setSelectedCategories([]);
     setSelectedSubcategories([]);
     setSelectedManufacturers([]);
+    setSortBy('default');
     setSearchParams({});
   };
 
@@ -103,23 +136,46 @@ const Index = () => {
               </p>
             </div>
             
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">Показывать:</span>
-              <Select
-                value={itemsPerPage.toString()}
-                onValueChange={(value) => setItemsPerPage(Number(value))}
-              >
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ITEMS_OPTIONS.map((num) => (
-                    <SelectItem key={num} value={num.toString()}>
-                      {num}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Sort */}
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+                <Select
+                  value={sortBy}
+                  onValueChange={(value) => setSortBy(value as SortOption)}
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Items per page */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground hidden sm:inline">Показывать:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => setItemsPerPage(Number(value))}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ITEMS_OPTIONS.map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
