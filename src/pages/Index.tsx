@@ -11,14 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const ITEMS_OPTIONS = [24, 48, 96, 192];
 
-type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
+type SortOption = 'default' | 'price-asc' | 'price-desc';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'default', label: 'По умолчанию' },
   { value: 'price-asc', label: 'Цена: по возрастанию' },
   { value: 'price-desc', label: 'Цена: по убыванию' },
-  { value: 'name-asc', label: 'Название: А-Я' },
-  { value: 'name-desc', label: 'Название: Я-А' },
 ];
 
 const Index = () => {
@@ -80,20 +78,11 @@ const Index = () => {
       return true;
     });
 
-    // Sort
-    switch (sortBy) {
-      case 'price-asc':
-        result = [...result].sort((a, b) => (a.price || 0) - (b.price || 0));
-        break;
-      case 'price-desc':
-        result = [...result].sort((a, b) => (b.price || 0) - (a.price || 0));
-        break;
-      case 'name-asc':
-        result = [...result].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
-        break;
-      case 'name-desc':
-        result = [...result].sort((a, b) => (b.name || '').localeCompare(a.name || '', 'ru'));
-        break;
+    // Sort - use stable sort
+    if (sortBy === 'price-asc') {
+      result = [...result].sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (sortBy === 'price-desc') {
+      result = [...result].sort((a, b) => (b.price || 0) - (a.price || 0));
     }
 
     return result;
@@ -128,58 +117,53 @@ const Index = () => {
       <main className="flex-1">
         <div className="container py-6">
           {/* Page header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col gap-4 mb-6">
             <div>
-              <h1 className="text-2xl font-bold">{pageTitle}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold">{pageTitle}</h1>
               <p className="text-muted-foreground text-sm mt-1">
                 {isLoading ? 'Загрузка...' : `${filteredProducts.length} товаров из ${products.length}`}
               </p>
             </div>
             
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {/* Sort */}
-              <div className="flex items-center gap-2">
-                <ArrowUpDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
-                <Select
-                  value={sortBy}
-                  onValueChange={(value) => setSortBy(value as SortOption)}
-                >
-                  <SelectTrigger className="w-44">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SORT_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                value={sortBy}
+                onValueChange={(value) => setSortBy(value as SortOption)}
+              >
+                <SelectTrigger className="w-full sm:w-48">
+                  <ArrowUpDown className="h-4 w-4 mr-2 shrink-0" />
+                  <SelectValue placeholder="Сортировка" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               {/* Items per page */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground hidden sm:inline">Показывать:</span>
-                <Select
-                  value={itemsPerPage.toString()}
-                  onValueChange={(value) => setItemsPerPage(Number(value))}
-                >
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ITEMS_OPTIONS.map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => setItemsPerPage(Number(value))}
+              >
+                <SelectTrigger className="w-28 sm:w-32">
+                  <SelectValue placeholder="На странице" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ITEMS_OPTIONS.map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num} шт.
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div className="flex gap-6">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             {/* Sidebar */}
             <FilterSidebar
               products={products}
@@ -221,7 +205,7 @@ const Index = () => {
                   <div className={
                     viewMode === 'compact' 
                       ? 'grid grid-cols-1 gap-2' 
-                      : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'
+                      : 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3'
                   }>
                     {paginatedProducts.map((product) => (
                       <ProductCard key={product.id} product={product} viewMode={viewMode} />
