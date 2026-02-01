@@ -78,11 +78,21 @@ const Index = () => {
       return true;
     });
 
-    // Sort - use stable sort
+    // Sort - stable sort with index fallback to prevent flickering
     if (sortBy === 'price-asc') {
-      result = [...result].sort((a, b) => (a.price || 0) - (b.price || 0));
+      result = [...result].sort((a, b) => {
+        const priceA = a.price ?? 0;
+        const priceB = b.price ?? 0;
+        if (priceA !== priceB) return priceA - priceB;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
     } else if (sortBy === 'price-desc') {
-      result = [...result].sort((a, b) => (b.price || 0) - (a.price || 0));
+      result = [...result].sort((a, b) => {
+        const priceA = a.price ?? 0;
+        const priceB = b.price ?? 0;
+        if (priceA !== priceB) return priceB - priceA;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
     }
 
     return result;
