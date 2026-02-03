@@ -41,7 +41,6 @@ export function FilterSidebar({
     new Set(['categories', 'manufacturers'])
   );
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [searchCategory, setSearchCategory] = useState('');
   const [searchManufacturer, setSearchManufacturer] = useState('');
 
@@ -306,55 +305,16 @@ export function FilterSidebar({
     </div>
   );
 
+  // Desktop only - mobile uses MobileFilters component
   return (
-    <>
-      {/* Mobile filter button */}
-      <Button
-        variant="outline"
-        className="lg:hidden mb-4"
-        onClick={() => setIsMobileOpen(true)}
-      >
-        <Filter className="h-4 w-4 mr-2" />
-        Фильтры
-        {hasActiveFilters && (
-          <span className="ml-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-            {selectedCategories.length + selectedSubcategories.length + selectedManufacturers.length}
-          </span>
-        )}
-      </Button>
-
-      {/* Mobile drawer */}
-      {isMobileOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden"
-            onClick={() => setIsMobileOpen(false)}
-          />
-          <div className="fixed inset-y-0 left-0 w-80 bg-card border-r border-border p-4 z-50 lg:hidden overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Фильтры
-              </h2>
-              <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(false)}>
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <SidebarContent />
-          </div>
-        </>
-      )}
-
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-72 shrink-0">
-        <div className="sticky top-24 bg-card border border-border rounded-lg p-4">
-          <h2 className="font-semibold flex items-center gap-2 mb-4">
-            <Filter className="h-5 w-5" />
-            Фильтры
-          </h2>
-          <SidebarContent />
-        </div>
-      </aside>
-    </>
+    <aside className="hidden lg:block w-72 shrink-0">
+      <div className="sticky top-24 bg-card border border-border rounded-lg p-4">
+        <h2 className="font-semibold flex items-center gap-2 mb-4">
+          <Filter className="h-5 w-5" />
+          Фильтры
+        </h2>
+        <SidebarContent />
+      </div>
+    </aside>
   );
 }
