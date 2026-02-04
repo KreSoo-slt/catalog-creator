@@ -60,7 +60,7 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
     .from('products')
     .select('*')
     .eq('slug', slug)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error fetching product:', error);
