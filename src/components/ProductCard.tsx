@@ -17,12 +17,6 @@ const formatPrice = (price: number) => {
 export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
   const { addItem } = useCart();
 
-  // Skip rendering if product has no slug
-  if (!product.slug) {
-    console.warn(`Product "${product.name}" (id: ${product.id}) has no slug`);
-    return null;
-  }
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
