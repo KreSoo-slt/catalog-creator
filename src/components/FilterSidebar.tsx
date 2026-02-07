@@ -67,12 +67,12 @@ export function FilterSidebar({
     return Array.from(catMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
   }, [products]);
 
-  // Build manufacturers list
+  // Build manufacturers list (using producer field)
   const manufacturers = useMemo(() => {
     const mfMap = new Map<string, number>();
     
     products.forEach((product) => {
-      const mf = product.manufacturer || product.category;
+      const mf = product.producer;
       if (mf) {
         mfMap.set(mf, (mfMap.get(mf) || 0) + 1);
       }

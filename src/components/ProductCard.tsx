@@ -76,12 +76,19 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
             fallback="/placeholder.svg"
           />
 
-          {/* Category badge */}
-          {product.category && (
-            <span className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm text-xs font-medium px-2 py-1 rounded">
-              {product.category}
-            </span>
-          )}
+          {/* Category & Type badge */}
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {product.category && (
+              <span className="bg-background/90 backdrop-blur-sm text-xs font-medium px-2 py-1 rounded">
+                {product.category}
+              </span>
+            )}
+            {product.subcategory && (
+              <span className="bg-primary/80 text-primary-foreground backdrop-blur-sm text-xs px-2 py-0.5 rounded">
+                {product.subcategory}
+              </span>
+            )}
+          </div>
 
           {/* Quick view overlay */}
           <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">

@@ -55,10 +55,10 @@ const Index = () => {
         return false;
       }
 
-      // Manufacturer filter (multi-select)
+      // Manufacturer filter (multi-select) - using producer field
       if (selectedManufacturers.length > 0) {
-        const productManufacturer = product.manufacturer || product.category;
-        if (!productManufacturer || !selectedManufacturers.includes(productManufacturer)) {
+        const productProducer = product.producer;
+        if (!productProducer || !selectedManufacturers.includes(productProducer)) {
           return false;
         }
       }
@@ -69,9 +69,9 @@ const Index = () => {
         const name = (product.name || '').toLowerCase();
         const category = (product.category || '').toLowerCase();
         const description = (product.description || '').toLowerCase();
-        const manufacturer = (product.manufacturer || '').toLowerCase();
+        const producer = (product.producer || '').toLowerCase();
         
-        if (!name.includes(query) && !category.includes(query) && !description.includes(query) && !manufacturer.includes(query)) {
+        if (!name.includes(query) && !category.includes(query) && !description.includes(query) && !producer.includes(query)) {
           return false;
         }
       }
