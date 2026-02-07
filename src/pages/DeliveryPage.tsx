@@ -20,7 +20,7 @@ const DeliveryPage = () => {
               <h2 className="text-xl font-semibold">Курьерская доставка</h2>
             </div>
             <p className="text-muted-foreground">
-              Доставка по {siteConfig.contacts.city} и пригородам. Стоимость рассчитывается индивидуально.
+             Доставка по казахстану осуществляется: Транспортными команиями или же InDriver
             </p>
           </div>
 
@@ -53,18 +53,15 @@ const DeliveryPage = () => {
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <Package className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-xl font-semibold">Бесплатная доставка</h2>
+            
             </div>
             <p className="text-muted-foreground">
-              При заказе от {siteConfig.delivery.freeDeliveryFrom.toLocaleString('ru-RU')} {siteConfig.delivery.currency} доставка бесплатно!
+      
             </p>
           </div>
         </div>
 
-        <div className="max-w-3xl p-6 bg-muted/50 rounded-lg">
-          <h3 className="font-semibold mb-3">Зона доставки</h3>
-          <p className="text-muted-foreground">
-            {siteConfig.delivery.deliveryZone}. Доставка в другие регионы обсуждается индивидуально.
+       
           </p>
         </div>
       </main>
