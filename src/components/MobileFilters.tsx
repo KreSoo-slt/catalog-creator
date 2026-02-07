@@ -36,12 +36,12 @@ export function MobileFilters({
   const [expandedSection, setExpandedSection] = useState<FilterType>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Build manufacturers list (top level)
+  // Build manufacturers list (top level) - using producer field
   const manufacturers = useMemo(() => {
     const mfMap = new Map<string, number>();
     
     products.forEach((product) => {
-      const mf = product.manufacturer;
+      const mf = product.producer;
       if (mf) {
         mfMap.set(mf, (mfMap.get(mf) || 0) + 1);
       }
@@ -58,7 +58,7 @@ export function MobileFilters({
     
     // Filter by selected manufacturers if any
     const filteredProducts = selectedManufacturers.length > 0
-      ? products.filter(p => p.manufacturer && selectedManufacturers.includes(p.manufacturer))
+      ? products.filter(p => p.producer && selectedManufacturers.includes(p.producer))
       : products;
     
     filteredProducts.forEach((product) => {
@@ -80,7 +80,7 @@ export function MobileFilters({
     // Filter by selected manufacturers and categories
     let filteredProducts = products;
     if (selectedManufacturers.length > 0) {
-      filteredProducts = filteredProducts.filter(p => p.manufacturer && selectedManufacturers.includes(p.manufacturer));
+      filteredProducts = filteredProducts.filter(p => p.producer && selectedManufacturers.includes(p.producer));
     }
     if (selectedCategories.length > 0) {
       filteredProducts = filteredProducts.filter(p => p.category && selectedCategories.includes(p.category));

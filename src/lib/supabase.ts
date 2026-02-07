@@ -12,7 +12,7 @@ export interface Product {
   img: string;
   category: string;
   subcategory?: string;
-  manufacturer?: string;
+  producer?: string;
   description?: string;
   slug: string;
   inBox?: string;

@@ -114,15 +114,20 @@ const ProductPage = () => {
           <div className="flex flex-col">
             <h1 className="text-2xl font-bold mb-3">{product.name}</h1>
             
+            {/* Category and Type display */}
             <div className="flex flex-wrap gap-2 mb-4">
+              {product.producer && (
+                <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+                  {product.producer}
+                </Badge>
+              )}
               {product.category && (
                 <Badge variant="secondary">{product.category}</Badge>
               )}
               {product.subcategory && (
-                <Badge variant="outline">{product.subcategory}</Badge>
-              )}
-              {product.manufacturer && (
-                <Badge variant="outline">{product.manufacturer}</Badge>
+                <Badge variant="outline" className="text-muted-foreground">
+                  Тип: {product.subcategory}
+                </Badge>
               )}
             </div>
 
