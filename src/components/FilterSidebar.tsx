@@ -10,10 +10,12 @@ interface FilterSidebarProps {
   products: Product[];
   selectedCategories: string[];
   selectedSubcategories: string[];
+  selectedTypes: string[];
   selectedManufacturers: string[];
   viewMode: 'grid' | 'compact';
   onCategoriesChange: (categories: string[]) => void;
   onSubcategoriesChange: (subcategories: string[]) => void;
+  onTypesChange: (types: string[]) => void;
   onManufacturersChange: (manufacturers: string[]) => void;
   onViewModeChange: (mode: 'grid' | 'compact') => void;
   onClearFilters: () => void;
@@ -29,20 +31,23 @@ export function FilterSidebar({
   products,
   selectedCategories,
   selectedSubcategories,
+  selectedTypes,
   selectedManufacturers,
   viewMode,
   onCategoriesChange,
   onSubcategoriesChange,
+  onTypesChange,
   onManufacturersChange,
   onViewModeChange,
   onClearFilters,
 }: FilterSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['categories', 'manufacturers'])
+    new Set(['categories', 'manufacturers', 'types'])
   );
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [searchCategory, setSearchCategory] = useState('');
   const [searchManufacturer, setSearchManufacturer] = useState('');
+  const [searchType, setSearchType] = useState('');
 
   // Build category tree
   const categories = useMemo(() => {
@@ -67,6 +72,22 @@ export function FilterSidebar({
     return Array.from(catMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
   }, [products]);
 
+  // Build types list (subcategory as "Type")
+  const types = useMemo(() => {
+    const typeMap = new Map<string, number>();
+    
+    products.forEach((product) => {
+      const type = product.subcategory;
+      if (type) {
+        typeMap.set(type, (typeMap.get(type) || 0) + 1);
+      }
+    });
+    
+    return Array.from(typeMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  }, [products]);
+
   // Build manufacturers list (using producer field)
   const manufacturers = useMemo(() => {
     const mfMap = new Map<string, number>();
@@ -83,7 +104,7 @@ export function FilterSidebar({
       .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
   }, [products]);
 
-  const hasActiveFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || selectedManufacturers.length > 0;
+  const hasActiveFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || selectedTypes.length > 0 || selectedManufacturers.length > 0;
 
   const toggleSection = (section: string) => {
     const next = new Set(expandedSections);
@@ -126,12 +147,23 @@ export function FilterSidebar({
     onManufacturersChange(newManufacturers);
   };
 
+  const handleTypeToggle = (type: string) => {
+    const newTypes = selectedTypes.includes(type)
+      ? selectedTypes.filter(t => t !== type)
+      : [...selectedTypes, type];
+    onTypesChange(newTypes);
+  };
+
   const filteredCategories = categories.filter(cat => 
     cat.name.toLowerCase().includes(searchCategory.toLowerCase())
   );
 
   const filteredManufacturers = manufacturers.filter(mf => 
     mf.name.toLowerCase().includes(searchManufacturer.toLowerCase())
+  );
+
+  const filteredTypes = types.filter(t => 
+    t.name.toLowerCase().includes(searchType.toLowerCase())
   );
 
   const SidebarContent = () => (
@@ -166,7 +198,7 @@ export function FilterSidebar({
           onClick={onClearFilters}
         >
           <X className="h-4 w-4 mr-2" />
-          Сбросить фильтры ({selectedCategories.length + selectedSubcategories.length + selectedManufacturers.length})
+          Сбросить фильтры ({selectedCategories.length + selectedSubcategories.length + selectedTypes.length + selectedManufacturers.length})
         </Button>
       )}
 
@@ -294,6 +326,53 @@ export function FilterSidebar({
                     >
                       {mf.name}
                       <span className="text-muted-foreground ml-1">({mf.count})</span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+      </div>
+
+      {/* Types Section */}
+      <div className="border border-border rounded-lg overflow-hidden">
+        <button
+          className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+          onClick={() => toggleSection('types')}
+        >
+          <span className="font-semibold text-sm">Тип</span>
+          {expandedSections.has('types') ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </button>
+        
+        {expandedSections.has('types') && (
+          <div className="p-2">
+            <input
+              type="text"
+              placeholder="Поиск типа..."
+              value={searchType}
+              onChange={(e) => setSearchType(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-md mb-2 bg-background"
+            />
+            <ScrollArea className="h-[200px]">
+              <div className="space-y-1 pr-3">
+                {filteredTypes.map((t) => (
+                  <div key={t.name} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`type-${t.name}`}
+                      checked={selectedTypes.includes(t.name)}
+                      onCheckedChange={() => handleTypeToggle(t.name)}
+                    />
+                    <label
+                      htmlFor={`type-${t.name}`}
+                      className="flex-1 text-sm cursor-pointer py-1"
+                    >
+                      {t.name}
+                      <span className="text-muted-foreground ml-1">({t.count})</span>
                     </label>
                   </div>
                 ))}
