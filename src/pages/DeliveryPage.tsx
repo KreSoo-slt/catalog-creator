@@ -1,6 +1,6 @@
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { Truck, MapPin, Clock, Package } from 'lucide-react';
+import { Truck, MapPin, Clock } from 'lucide-react';
 import { siteConfig } from '@/config/siteConfig';
 
 const DeliveryPage = () => {
@@ -11,16 +11,16 @@ const DeliveryPage = () => {
       <main className="flex-1 container py-8">
         <h1 className="text-3xl font-bold mb-8">Доставка</h1>
         
-        <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl">
           <div className="p-6 border border-border rounded-lg bg-card">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <Truck className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-xl font-semibold">Курьерская доставка</h2>
+              <h2 className="text-xl font-semibold">Доставка по Казахстану</h2>
             </div>
             <p className="text-muted-foreground">
-             Доставка по казахстану осуществляется: Транспортными команиями или же InDriver
+              Отправка осуществляется транспортными компаниями или InDriver
             </p>
           </div>
 
@@ -47,22 +47,6 @@ const DeliveryPage = () => {
               {siteConfig.delivery.deliveryTime}. Точное время согласовывается с менеджером.
             </p>
           </div>
-
-          <div className="p-6 border border-border rounded-lg bg-card">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Package className="h-6 w-6 text-primary" />
-              </div>
-            
-            </div>
-            <p className="text-muted-foreground">
-      
-            </p>
-          </div>
-        </div>
-
-       
-          </p>
         </div>
       </main>
 

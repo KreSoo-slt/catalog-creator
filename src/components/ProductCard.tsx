@@ -44,10 +44,15 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
             <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
               {product.name}
             </h3>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-muted-foreground">{product.category}</span>
-              {product.inBox && (
-                <span className="text-xs text-muted-foreground">• {product.inBox}</span>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {product.producer && (
+                <span className="text-xs font-medium text-primary">{product.producer}</span>
+              )}
+              {product.category && (
+                <span className="text-xs text-muted-foreground">• {product.category}</span>
+              )}
+              {product.subcategory && (
+                <span className="text-xs text-muted-foreground">• {product.subcategory}</span>
               )}
             </div>
           </Link>
@@ -76,16 +81,16 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
             fallback="/placeholder.svg"
           />
 
-          {/* Category & Type badge */}
+          {/* Producer & Category badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {product.category && (
-              <span className="bg-background/90 backdrop-blur-sm text-xs font-medium px-2 py-1 rounded">
-                {product.category}
+            {product.producer && (
+              <span className="bg-primary text-primary-foreground backdrop-blur-sm text-xs font-medium px-2 py-1 rounded">
+                {product.producer}
               </span>
             )}
-            {product.subcategory && (
-              <span className="bg-primary/80 text-primary-foreground backdrop-blur-sm text-xs px-2 py-0.5 rounded">
-                {product.subcategory}
+            {product.category && (
+              <span className="bg-background/90 backdrop-blur-sm text-xs px-2 py-0.5 rounded">
+                {product.category}
               </span>
             )}
           </div>
