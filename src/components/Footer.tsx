@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Phone, MapPin, Clock, MessageCircle } from 'lucide-react';
+import { Phone, MapPin, MessageCircle } from 'lucide-react';
 import { siteConfig, getPhoneLink, getWhatsAppLink } from '@/config/siteConfig';
 
 export function Footer() {
@@ -62,10 +62,6 @@ export function Footer() {
                 <MapPin className="h-4 w-4" />
                 {siteConfig.contacts.address}
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                {siteConfig.contacts.workingHours}
-              </div>
             </div>
           </div>
 
@@ -73,11 +69,8 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Доставка</h4>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>
-                Бесплатно от {siteConfig.delivery.freeDeliveryFrom.toLocaleString('ru-RU')} {siteConfig.delivery.currency}
-              </p>
+              <p>{siteConfig.delivery.description}</p>
               <p>Срок: {siteConfig.delivery.deliveryTime}</p>
-              <p>Зона: {siteConfig.delivery.deliveryZone}</p>
             </div>
           </div>
         </div>

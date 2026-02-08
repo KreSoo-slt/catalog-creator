@@ -222,7 +222,7 @@ export function MobileFilters({
   };
 
   return (
-    <div className="bg-card border-b border-border sticky top-[60px] z-30 md:hidden">
+    <div className="bg-card border-b border-border sticky top-[105px] z-30 md:hidden shadow-sm">
       {/* Filter chips row */}
       <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto no-scrollbar">
         {/* View toggle */}
