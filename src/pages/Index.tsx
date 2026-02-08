@@ -18,6 +18,7 @@ const Index = () => {
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedManufacturers, setSelectedManufacturers] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   const [itemsPerPage, setItemsPerPage] = useState(48);
@@ -28,7 +29,7 @@ const Index = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategories, selectedSubcategories, selectedManufacturers, searchQuery, itemsPerPage]);
+  }, [selectedCategories, selectedSubcategories, selectedTypes, selectedManufacturers, searchQuery, itemsPerPage]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -43,6 +44,11 @@ const Index = () => {
 
       // Subcategory filter (multi-select)
       if (selectedSubcategories.length > 0 && (!product.subcategory || !selectedSubcategories.includes(product.subcategory))) {
+        return false;
+      }
+
+      // Type filter (uses subcategory field)
+      if (selectedTypes.length > 0 && (!product.subcategory || !selectedTypes.includes(product.subcategory))) {
         return false;
       }
 
@@ -69,7 +75,7 @@ const Index = () => {
 
       return true;
     });
-  }, [products, selectedCategories, selectedSubcategories, selectedManufacturers, searchQuery]);
+  }, [products, selectedCategories, selectedSubcategories, selectedTypes, selectedManufacturers, searchQuery]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -81,6 +87,7 @@ const Index = () => {
   const handleClearFilters = () => {
     setSelectedCategories([]);
     setSelectedSubcategories([]);
+    setSelectedTypes([]);
     setSelectedManufacturers([]);
     setSearchParams({});
   };
@@ -169,10 +176,12 @@ const Index = () => {
               products={products}
               selectedCategories={selectedCategories}
               selectedSubcategories={selectedSubcategories}
+              selectedTypes={selectedTypes}
               selectedManufacturers={selectedManufacturers}
               viewMode={viewMode}
               onCategoriesChange={setSelectedCategories}
               onSubcategoriesChange={setSelectedSubcategories}
+              onTypesChange={setSelectedTypes}
               onManufacturersChange={setSelectedManufacturers}
               onViewModeChange={setViewMode}
               onClearFilters={handleClearFilters}

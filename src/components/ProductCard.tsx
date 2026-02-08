@@ -81,20 +81,6 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
             fallback="/placeholder.svg"
           />
 
-          {/* Producer & Category badges */}
-          <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {product.producer && (
-              <span className="bg-primary text-primary-foreground backdrop-blur-sm text-xs font-medium px-2 py-1 rounded">
-                {product.producer}
-              </span>
-            )}
-            {product.category && (
-              <span className="bg-background/90 backdrop-blur-sm text-xs px-2 py-0.5 rounded">
-                {product.category}
-              </span>
-            )}
-          </div>
-
           {/* Quick view overlay */}
           <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
             <div className="flex gap-2">
@@ -108,12 +94,28 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
 
         {/* Content */}
         <div className="p-3">
-          <h3 className="font-medium text-sm line-clamp-2 min-h-[2.5rem] group-hover:text-primary transition-colors">
+          {/* Product name - prominent */}
+          <h3 className="font-semibold text-sm sm:text-base line-clamp-2 min-h-[2.5rem] group-hover:text-primary transition-colors">
             {product.name}
           </h3>
           
+          {/* Meta info - subtle, below name */}
+          <div className="flex flex-wrap items-center gap-1 mt-1.5 text-xs text-muted-foreground">
+            {product.producer && (
+              <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-medium">
+                {product.producer}
+              </span>
+            )}
+            {product.category && (
+              <span className="hidden sm:inline">• {product.category}</span>
+            )}
+            {product.subcategory && (
+              <span className="hidden sm:inline">• {product.subcategory}</span>
+            )}
+          </div>
+          
           {product.inBox && (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
               {product.inBox}
             </p>
           )}
