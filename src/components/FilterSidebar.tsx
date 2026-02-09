@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
-import { ChevronDown, X, LayoutGrid, List } from 'lucide-react';
+import { ChevronDown, X, LayoutGrid, List, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Product } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 
 interface FilterSidebarProps {
   products: Product[];
@@ -20,6 +22,12 @@ interface FilterSidebarProps {
   onClearFilters: () => void;
 }
 
+interface CategoryNode {
+  name: string;
+  count: number;
+  types: { name: string; count: number }[];
+}
+
 export function FilterSidebar({
   products,
   selectedCategories,
@@ -34,124 +42,97 @@ export function FilterSidebar({
   onViewModeChange,
   onClearFilters,
 }: FilterSidebarProps) {
-  const [expandedManufacturer, setExpandedManufacturer] = useState<string | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [manufacturerSearch, setManufacturerSearch] = useState('');
+  const [manufacturersExpanded, setManufacturersExpanded] = useState(true);
 
   const hasActiveFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || selectedTypes.length > 0 || selectedManufacturers.length > 0;
 
-  // Build manufacturers with their categories
-  const manufacturerTree = useMemo(() => {
-    const tree = new Map<string, Map<string, Map<string, number>>>();
+  // Manufacturers list
+  const manufacturers = useMemo(() => {
+    const map = new Map<string, number>();
+    products.forEach(p => {
+      if (p.producer) map.set(p.producer, (map.get(p.producer) || 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  }, [products]);
 
-    products.forEach((product) => {
-      const producer = product.producer || 'Без производителя';
-      const category = product.category || 'Без категории';
-      const type = product.subcategory;
+  const filteredManufacturers = manufacturers.filter(m =>
+    m.name.toLowerCase().includes(manufacturerSearch.toLowerCase())
+  );
 
-      if (!tree.has(producer)) tree.set(producer, new Map());
-      const catMap = tree.get(producer)!;
-      if (!catMap.has(category)) catMap.set(category, new Map());
-      const typeMap = catMap.get(category)!;
-      if (type) {
-        typeMap.set(type, (typeMap.get(type) || 0) + 1);
+  // Category tree with types (subcategories)
+  const categoryTree = useMemo(() => {
+    const map = new Map<string, { count: number; types: Map<string, number> }>();
+
+    // Filter by selected manufacturers
+    const filtered = selectedManufacturers.length > 0
+      ? products.filter(p => p.producer && selectedManufacturers.includes(p.producer))
+      : products;
+
+    filtered.forEach(p => {
+      const cat = p.category || 'Без категории';
+      if (!map.has(cat)) map.set(cat, { count: 0, types: new Map() });
+      const node = map.get(cat)!;
+      node.count++;
+      if (p.subcategory) {
+        node.types.set(p.subcategory, (node.types.get(p.subcategory) || 0) + 1);
       }
     });
 
-    return tree;
-  }, [products]);
+    const result: CategoryNode[] = Array.from(map.entries()).map(([name, data]) => ({
+      name,
+      count: data.count,
+      types: Array.from(data.types.entries())
+        .map(([n, c]) => ({ name: n, count: c }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+    }));
 
-  // Get counts
-  const manufacturerCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    products.forEach(p => {
-      const key = p.producer || 'Без производителя';
-      counts.set(key, (counts.get(key) || 0) + 1);
-    });
-    return counts;
-  }, [products]);
+    return result.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  }, [products, selectedManufacturers]);
 
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    products.forEach(p => {
-      const key = p.category || 'Без категории';
-      counts.set(key, (counts.get(key) || 0) + 1);
-    });
-    return counts;
-  }, [products]);
-
-  const sortedManufacturers = useMemo(() =>
-    Array.from(manufacturerTree.keys()).sort((a, b) => a.localeCompare(b, 'ru')),
-    [manufacturerTree]
-  );
-
-  const handleManufacturerClick = (mf: string) => {
-    if (expandedManufacturer === mf) {
-      setExpandedManufacturer(null);
-    } else {
-      setExpandedManufacturer(mf);
-      setExpandedCategory(null);
-    }
-    // Select/deselect manufacturer
-    const newMf = selectedManufacturers.includes(mf)
-      ? selectedManufacturers.filter(m => m !== mf)
-      : [mf];
-    onManufacturersChange(newMf);
+  const handleManufacturerToggle = (name: string) => {
+    const next = selectedManufacturers.includes(name)
+      ? selectedManufacturers.filter(m => m !== name)
+      : [...selectedManufacturers, name];
+    onManufacturersChange(next);
+    // Reset dependent filters
     onCategoriesChange([]);
     onTypesChange([]);
+    setExpandedCategory(null);
   };
 
-  const handleCategoryClick = (cat: string) => {
-    if (expandedCategory === cat) {
-      setExpandedCategory(null);
-    } else {
-      setExpandedCategory(cat);
-    }
-    const newCats = selectedCategories.includes(cat)
-      ? selectedCategories.filter(c => c !== cat)
-      : [cat];
-    onCategoriesChange(newCats);
+  const handleCategoryClick = (name: string) => {
+    // Toggle expand
+    setExpandedCategory(expandedCategory === name ? null : name);
+    // Toggle selection
+    const next = selectedCategories.includes(name)
+      ? selectedCategories.filter(c => c !== name)
+      : [name];
+    onCategoriesChange(next);
     onTypesChange([]);
   };
 
-  const handleTypeClick = (type: string) => {
-    const newTypes = selectedTypes.includes(type)
-      ? selectedTypes.filter(t => t !== type)
-      : [type];
-    onTypesChange(newTypes);
+  const handleTypeClick = (name: string) => {
+    const next = selectedTypes.includes(name)
+      ? selectedTypes.filter(t => t !== name)
+      : [name];
+    onTypesChange(next);
   };
-
-  // Get categories for current expanded manufacturer
-  const currentCategories = useMemo(() => {
-    if (!expandedManufacturer) return [];
-    const catMap = manufacturerTree.get(expandedManufacturer);
-    if (!catMap) return [];
-    return Array.from(catMap.keys()).sort((a, b) => a.localeCompare(b, 'ru'));
-  }, [expandedManufacturer, manufacturerTree]);
-
-  // Get types for current expanded category
-  const currentTypes = useMemo(() => {
-    if (!expandedManufacturer || !expandedCategory) return [];
-    const catMap = manufacturerTree.get(expandedManufacturer);
-    if (!catMap) return [];
-    const typeMap = catMap.get(expandedCategory);
-    if (!typeMap) return [];
-    return Array.from(typeMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-  }, [expandedManufacturer, expandedCategory, manufacturerTree]);
 
   return (
     <aside className="hidden lg:block w-64 shrink-0">
-      <div className="sticky top-24 bg-card border border-border rounded-xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="font-bold text-base">Каталог</h2>
+      <div className="sticky top-24 space-y-4">
+        {/* View mode + clear */}
+        <div className="bg-card border border-border rounded-xl p-3 flex items-center justify-between">
           <div className="flex items-center gap-1">
             <button
               onClick={() => onViewModeChange('grid')}
               className={cn(
-                "p-1.5 rounded-md transition-colors",
-                viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                "p-2 rounded-lg transition-colors",
+                viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -159,115 +140,132 @@ export function FilterSidebar({
             <button
               onClick={() => onViewModeChange('compact')}
               className={cn(
-                "p-1.5 rounded-md transition-colors",
-                viewMode === 'compact' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                "p-2 rounded-lg transition-colors",
+                viewMode === 'compact' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
               <List className="h-4 w-4" />
             </button>
           </div>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-destructive hover:text-destructive h-8 px-2">
+              <X className="h-4 w-4 mr-1" /> Сброс
+            </Button>
+          )}
         </div>
 
-        {/* Clear filters */}
-        {hasActiveFilters && (
-          <div className="px-4 pt-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={onClearFilters}
-            >
-              <X className="h-4 w-4 mr-1" />
-              Сбросить фильтры
-            </Button>
-          </div>
-        )}
-
-        {/* Accordion menu */}
-        <ScrollArea className="h-[calc(100vh-200px)]">
-          <nav className="py-2">
-            {sortedManufacturers.map((mf) => {
-              const isExpanded = expandedManufacturer === mf;
-              const isSelected = selectedManufacturers.includes(mf);
-              const count = manufacturerCounts.get(mf) || 0;
-
-              return (
-                <div key={mf}>
-                  {/* Manufacturer row */}
-                  <button
-                    onClick={() => handleManufacturerClick(mf)}
-                    className={cn(
-                      "w-full flex items-center justify-between px-4 py-3 text-left transition-colors border-l-3",
-                      isSelected
-                        ? "bg-primary/10 border-l-primary font-semibold text-foreground"
-                        : "border-l-transparent hover:bg-muted/50 text-foreground/80"
-                    )}
-                  >
-                    <span className="text-sm truncate pr-2">{mf}</span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground">{count}</span>
-                      <ChevronDown className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                        isExpanded && "rotate-180"
-                      )} />
-                    </div>
-                  </button>
-
-                  {/* Categories under manufacturer */}
-                  {isExpanded && currentCategories.length > 0 && (
-                    <div className="bg-muted/20">
-                      {currentCategories.map((cat) => {
-                        const isCatExpanded = expandedCategory === cat;
-                        const isCatSelected = selectedCategories.includes(cat);
-
-                        return (
-                          <div key={cat}>
-                            <button
-                              onClick={() => handleCategoryClick(cat)}
-                              className={cn(
-                                "w-full flex items-center justify-between pl-8 pr-4 py-2.5 text-left transition-colors",
-                                isCatSelected
-                                  ? "text-primary font-medium"
-                                  : "text-foreground/70 hover:text-foreground"
-                              )}
-                            >
-                              <span className="text-sm truncate pr-2">{cat}</span>
-                              <ChevronDown className={cn(
-                                "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0",
-                                isCatExpanded && "rotate-180"
-                              )} />
-                            </button>
-
-                            {/* Types under category */}
-                            {isCatExpanded && currentTypes.length > 0 && (
-                              <div className="bg-muted/10">
-                                {currentTypes.map((t) => (
-                                  <button
-                                    key={t.name}
-                                    onClick={() => handleTypeClick(t.name)}
-                                    className={cn(
-                                      "w-full text-left pl-12 pr-4 py-2 text-sm transition-colors",
-                                      selectedTypes.includes(t.name)
-                                        ? "text-primary font-medium"
-                                        : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                  >
-                                    {t.name}
-                                    <span className="ml-1 text-xs opacity-60">({t.count})</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+        {/* Manufacturers */}
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <button
+            onClick={() => setManufacturersExpanded(!manufacturersExpanded)}
+            className="w-full flex items-center justify-between px-4 py-3 font-bold text-sm hover:bg-muted/30 transition-colors"
+          >
+            <span>Производители</span>
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", manufacturersExpanded && "rotate-180")} />
+          </button>
+          {manufacturersExpanded && (
+            <div className="border-t border-border">
+              <div className="p-3 pb-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Поиск..."
+                    value={manufacturerSearch}
+                    onChange={e => setManufacturerSearch(e.target.value)}
+                    className="h-8 pl-8 text-sm"
+                  />
                 </div>
-              );
-            })}
-          </nav>
-        </ScrollArea>
+              </div>
+              <ScrollArea className="h-48">
+                <div className="px-2 pb-2 space-y-0.5">
+                  {filteredManufacturers.map(mf => (
+                    <label
+                      key={mf.name}
+                      className={cn(
+                        "flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-sm",
+                        selectedManufacturers.includes(mf.name)
+                          ? "bg-primary/10 text-foreground"
+                          : "hover:bg-muted/50 text-foreground/80"
+                      )}
+                    >
+                      <Checkbox
+                        checked={selectedManufacturers.includes(mf.name)}
+                        onCheckedChange={() => handleManufacturerToggle(mf.name)}
+                        className="shrink-0"
+                      />
+                      <span className="flex-1 truncate">{mf.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{mf.count}</span>
+                    </label>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </div>
+
+        {/* Categories accordion */}
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-4 py-3 font-bold text-sm border-b border-border">
+            Категории
+          </div>
+          <ScrollArea className="h-[calc(100vh-480px)] min-h-[200px]">
+            <nav className="py-1">
+              {categoryTree.map(cat => {
+                const isExpanded = expandedCategory === cat.name;
+                const isSelected = selectedCategories.includes(cat.name);
+
+                return (
+                  <div key={cat.name}>
+                    <button
+                      onClick={() => handleCategoryClick(cat.name)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm transition-all group",
+                        isSelected
+                          ? "bg-primary/10 font-semibold text-foreground border-l-[3px] border-l-primary"
+                          : "hover:bg-muted/40 text-foreground/80 border-l-[3px] border-l-transparent"
+                      )}
+                    >
+                      <span className="flex-1 truncate">{cat.name}</span>
+                      <span className={cn(
+                        "text-[11px] px-1.5 py-0.5 rounded-full shrink-0",
+                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                      )}>
+                        {cat.count}
+                      </span>
+                      {cat.types.length > 0 && (
+                        <ChevronDown className={cn(
+                          "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0",
+                          isExpanded && "rotate-180"
+                        )} />
+                      )}
+                    </button>
+
+                    {/* Types (subcategories) */}
+                    {isExpanded && cat.types.length > 0 && (
+                      <div className="bg-muted/20 border-l-[3px] border-l-primary/30 ml-0">
+                        {cat.types.map(t => (
+                          <button
+                            key={t.name}
+                            onClick={() => handleTypeClick(t.name)}
+                            className={cn(
+                              "w-full flex items-center gap-2 pl-8 pr-4 py-2 text-left text-sm transition-colors",
+                              selectedTypes.includes(t.name)
+                                ? "text-primary font-medium bg-primary/5"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                            )}
+                          >
+                            <span className="flex-1 truncate">{t.name}</span>
+                            <span className="text-[11px] text-muted-foreground shrink-0">{t.count}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </ScrollArea>
+        </div>
       </div>
     </aside>
   );

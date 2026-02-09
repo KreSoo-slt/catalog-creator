@@ -3,6 +3,7 @@ import { ChevronDown, ChevronLeft, X, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Product } from '@/lib/supabase';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface MobileFiltersProps {
   products: Product[];
@@ -17,7 +18,7 @@ interface MobileFiltersProps {
   onClearFilters: () => void;
 }
 
-type MenuLevel = 'manufacturers' | 'categories' | 'types';
+type OpenPanel = 'manufacturers' | 'categories' | null;
 
 export function MobileFilters({
   products,
@@ -31,117 +32,87 @@ export function MobileFilters({
   onViewModeChange,
   onClearFilters,
 }: MobileFiltersProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentLevel, setCurrentLevel] = useState<MenuLevel>('manufacturers');
-  const [currentManufacturer, setCurrentManufacturer] = useState<string | null>(null);
-  const [currentCategory, setCurrentCategory] = useState<string | null>(null);
+  const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const hasActiveFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || selectedManufacturers.length > 0;
 
-  // Build tree
-  const manufacturerTree = useMemo(() => {
-    const tree = new Map<string, Map<string, Map<string, number>>>();
-    products.forEach((product) => {
-      const producer = product.producer || 'Без производителя';
-      const category = product.category || 'Без категории';
-      const type = product.subcategory;
-      if (!tree.has(producer)) tree.set(producer, new Map());
-      const catMap = tree.get(producer)!;
-      if (!catMap.has(category)) catMap.set(category, new Map());
-      if (type) {
-        const typeMap = catMap.get(category)!;
-        typeMap.set(type, (typeMap.get(type) || 0) + 1);
-      }
-    });
-    return tree;
-  }, [products]);
-
-  const manufacturerCounts = useMemo(() => {
-    const counts = new Map<string, number>();
+  // Manufacturers
+  const manufacturers = useMemo(() => {
+    const map = new Map<string, number>();
     products.forEach(p => {
-      const key = p.producer || 'Без производителя';
-      counts.set(key, (counts.get(key) || 0) + 1);
+      if (p.producer) map.set(p.producer, (map.get(p.producer) || 0) + 1);
     });
-    return counts;
-  }, [products]);
-
-  const sortedManufacturers = useMemo(() =>
-    Array.from(manufacturerTree.keys()).sort((a, b) => a.localeCompare(b, 'ru')),
-    [manufacturerTree]
-  );
-
-  const currentCategories = useMemo(() => {
-    if (!currentManufacturer) return [];
-    const catMap = manufacturerTree.get(currentManufacturer);
-    if (!catMap) return [];
-    return Array.from(catMap.keys()).sort((a, b) => a.localeCompare(b, 'ru'));
-  }, [currentManufacturer, manufacturerTree]);
-
-  const currentTypes = useMemo(() => {
-    if (!currentManufacturer || !currentCategory) return [];
-    const catMap = manufacturerTree.get(currentManufacturer);
-    if (!catMap) return [];
-    const typeMap = catMap.get(currentCategory);
-    if (!typeMap) return [];
-    return Array.from(typeMap.entries())
+    return Array.from(map.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-  }, [currentManufacturer, currentCategory, manufacturerTree]);
+  }, [products]);
 
-  const handleManufacturerSelect = (mf: string) => {
-    setCurrentManufacturer(mf);
-    setCurrentLevel('categories');
-    onManufacturersChange([mf]);
+  // Category tree filtered by selected manufacturers
+  const categoryTree = useMemo(() => {
+    const filtered = selectedManufacturers.length > 0
+      ? products.filter(p => p.producer && selectedManufacturers.includes(p.producer))
+      : products;
+
+    const map = new Map<string, { count: number; types: Map<string, number> }>();
+    filtered.forEach(p => {
+      const cat = p.category || 'Без категории';
+      if (!map.has(cat)) map.set(cat, { count: 0, types: new Map() });
+      const node = map.get(cat)!;
+      node.count++;
+      if (p.subcategory) {
+        node.types.set(p.subcategory, (node.types.get(p.subcategory) || 0) + 1);
+      }
+    });
+
+    return Array.from(map.entries())
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        types: Array.from(data.types.entries())
+          .map(([n, c]) => ({ name: n, count: c }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  }, [products, selectedManufacturers]);
+
+  const handleManufacturerToggle = (name: string) => {
+    const next = selectedManufacturers.includes(name)
+      ? selectedManufacturers.filter(m => m !== name)
+      : [...selectedManufacturers, name];
+    onManufacturersChange(next);
     onCategoriesChange([]);
     onSubcategoriesChange([]);
+    setExpandedCategory(null);
   };
 
-  const handleCategorySelect = (cat: string) => {
-    setCurrentCategory(cat);
-    setCurrentLevel('types');
-    onCategoriesChange([cat]);
+  const handleCategoryClick = (name: string) => {
+    setExpandedCategory(expandedCategory === name ? null : name);
+    const next = selectedCategories.includes(name)
+      ? selectedCategories.filter(c => c !== name)
+      : [name];
+    onCategoriesChange(next);
     onSubcategoriesChange([]);
   };
 
-  const handleTypeSelect = (type: string) => {
-    const newSubs = selectedSubcategories.includes(type)
-      ? selectedSubcategories.filter(s => s !== type)
-      : [type];
-    onSubcategoriesChange(newSubs);
-  };
-
-  const goBack = () => {
-    if (currentLevel === 'types') {
-      setCurrentLevel('categories');
-      setCurrentCategory(null);
-      onSubcategoriesChange([]);
-    } else if (currentLevel === 'categories') {
-      setCurrentLevel('manufacturers');
-      setCurrentManufacturer(null);
-      onManufacturersChange([]);
-      onCategoriesChange([]);
-    }
-  };
-
-  const getTitle = () => {
-    if (currentLevel === 'types' && currentCategory) return currentCategory;
-    if (currentLevel === 'categories' && currentManufacturer) return currentManufacturer;
-    return 'Каталог';
+  const handleTypeClick = (name: string) => {
+    const next = selectedSubcategories.includes(name)
+      ? selectedSubcategories.filter(s => s !== name)
+      : [name];
+    onSubcategoriesChange(next);
   };
 
   return (
     <div className="bg-card border-b border-border sticky top-[105px] z-30 md:hidden shadow-sm">
       {/* Top bar */}
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto no-scrollbar">
         {/* View toggle */}
         <div className="flex items-center gap-0.5 shrink-0 border border-border rounded-lg p-0.5 bg-muted/30">
           <button
             onClick={() => onViewModeChange('grid')}
             className={cn(
               "p-2 rounded-md transition-all",
-              viewMode === 'grid'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+              viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             )}
             aria-label="Сетка"
           >
@@ -151,9 +122,7 @@ export function MobileFilters({
             onClick={() => onViewModeChange('compact')}
             className={cn(
               "p-2 rounded-md transition-all",
-              viewMode === 'compact'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+              viewMode === 'compact' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             )}
             aria-label="Список"
           >
@@ -161,115 +130,146 @@ export function MobileFilters({
           </button>
         </div>
 
-        {/* Catalog button */}
+        {/* Manufacturer chip */}
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setOpenPanel(openPanel === 'manufacturers' ? null : 'manufacturers')}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm shrink-0 transition-all border font-medium",
-            isOpen
+            "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm shrink-0 transition-all border",
+            selectedManufacturers.length > 0
               ? "bg-primary text-primary-foreground border-primary"
               : "bg-background text-foreground border-border hover:border-primary/50"
           )}
         >
-          Каталог
-          <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+          <span className="font-medium">Производитель</span>
+          {selectedManufacturers.length > 0 && (
+            <span className="min-w-5 h-5 flex items-center justify-center bg-primary-foreground/20 rounded-full text-xs font-bold">
+              {selectedManufacturers.length}
+            </span>
+          )}
+          <ChevronDown className={cn("h-4 w-4 transition-transform", openPanel === 'manufacturers' && "rotate-180")} />
         </button>
 
-        {/* Active filter chips */}
-        {selectedManufacturers.length > 0 && (
-          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full truncate shrink-0">
-            {selectedManufacturers[0]}
-          </span>
-        )}
-        {selectedCategories.length > 0 && (
-          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full truncate shrink-0">
-            {selectedCategories[0]}
-          </span>
-        )}
+        {/* Category chip */}
+        <button
+          onClick={() => setOpenPanel(openPanel === 'categories' ? null : 'categories')}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm shrink-0 transition-all border",
+            selectedCategories.length > 0
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background text-foreground border-border hover:border-primary/50"
+          )}
+        >
+          <span className="font-medium">Категория</span>
+          {selectedCategories.length > 0 && (
+            <span className="min-w-5 h-5 flex items-center justify-center bg-primary-foreground/20 rounded-full text-xs font-bold">
+              {selectedCategories.length}
+            </span>
+          )}
+          <ChevronDown className={cn("h-4 w-4 transition-transform", openPanel === 'categories' && "rotate-180")} />
+        </button>
 
         {/* Clear */}
         {hasActiveFilters && (
           <button
             onClick={() => {
               onClearFilters();
-              setCurrentLevel('manufacturers');
-              setCurrentManufacturer(null);
-              setCurrentCategory(null);
+              setOpenPanel(null);
+              setExpandedCategory(null);
             }}
-            className="flex items-center gap-1 px-2 py-2 rounded-lg text-sm shrink-0 text-destructive hover:bg-destructive/10 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm shrink-0 bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 transition-colors"
           >
             <X className="h-4 w-4" />
+            Сброс
           </button>
         )}
       </div>
 
-      {/* Dropdown menu */}
-      {isOpen && (
+      {/* Manufacturers panel */}
+      {openPanel === 'manufacturers' && (
         <div className="border-t border-border bg-background">
-          {/* Breadcrumb / Back */}
-          {currentLevel !== 'manufacturers' && (
-            <button
-              onClick={goBack}
-              className="flex items-center gap-2 px-4 py-3 text-sm text-primary w-full border-b border-border hover:bg-muted/30 transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span>{getTitle()}</span>
-            </button>
-          )}
+          <ScrollArea className="h-56">
+            <div className="p-2 space-y-0.5">
+              {manufacturers.map(mf => (
+                <label
+                  key={mf.name}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors",
+                    selectedManufacturers.includes(mf.name)
+                      ? "bg-primary/10 border border-primary/30"
+                      : "hover:bg-muted/50"
+                  )}
+                >
+                  <Checkbox
+                    checked={selectedManufacturers.includes(mf.name)}
+                    onCheckedChange={() => handleManufacturerToggle(mf.name)}
+                    className="shrink-0"
+                  />
+                  <span className="text-sm flex-1 truncate">{mf.name}</span>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{mf.count}</span>
+                </label>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
 
+      {/* Categories accordion panel */}
+      {openPanel === 'categories' && (
+        <div className="border-t border-border bg-background">
           <ScrollArea className="h-64">
             <div className="py-1">
-              {/* Manufacturers level */}
-              {currentLevel === 'manufacturers' && sortedManufacturers.map((mf) => (
-                <button
-                  key={mf}
-                  onClick={() => handleManufacturerSelect(mf)}
-                  className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 text-left text-sm transition-colors",
-                    selectedManufacturers.includes(mf)
-                      ? "text-primary font-medium bg-primary/5"
-                      : "text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  <span className="truncate pr-2">{mf}</span>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {manufacturerCounts.get(mf) || 0}
-                  </span>
-                </button>
-              ))}
+              {categoryTree.map(cat => {
+                const isExpanded = expandedCategory === cat.name;
+                const isSelected = selectedCategories.includes(cat.name);
 
-              {/* Categories level */}
-              {currentLevel === 'categories' && currentCategories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => handleCategorySelect(cat)}
-                  className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 text-left text-sm transition-colors",
-                    selectedCategories.includes(cat)
-                      ? "text-primary font-medium bg-primary/5"
-                      : "text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  <span className="truncate pr-2">{cat}</span>
-                </button>
-              ))}
+                return (
+                  <div key={cat.name}>
+                    <button
+                      onClick={() => handleCategoryClick(cat.name)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-4 py-3 text-left text-sm transition-all",
+                        isSelected
+                          ? "bg-primary/10 font-semibold text-foreground border-l-[3px] border-l-primary"
+                          : "hover:bg-muted/40 text-foreground/80 border-l-[3px] border-l-transparent"
+                      )}
+                    >
+                      <span className="flex-1 truncate">{cat.name}</span>
+                      <span className={cn(
+                        "text-[11px] px-1.5 py-0.5 rounded-full shrink-0",
+                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                      )}>
+                        {cat.count}
+                      </span>
+                      {cat.types.length > 0 && (
+                        <ChevronDown className={cn(
+                          "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0",
+                          isExpanded && "rotate-180"
+                        )} />
+                      )}
+                    </button>
 
-              {/* Types level */}
-              {currentLevel === 'types' && currentTypes.map((t) => (
-                <button
-                  key={t.name}
-                  onClick={() => handleTypeSelect(t.name)}
-                  className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 text-left text-sm transition-colors",
-                    selectedSubcategories.includes(t.name)
-                      ? "text-primary font-medium bg-primary/5"
-                      : "text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  <span className="truncate pr-2">{t.name}</span>
-                  <span className="text-xs text-muted-foreground shrink-0">{t.count}</span>
-                </button>
-              ))}
+                    {isExpanded && cat.types.length > 0 && (
+                      <div className="bg-muted/20 border-l-[3px] border-l-primary/30">
+                        {cat.types.map(t => (
+                          <button
+                            key={t.name}
+                            onClick={() => handleTypeClick(t.name)}
+                            className={cn(
+                              "w-full flex items-center gap-2 pl-8 pr-4 py-2.5 text-left text-sm transition-colors",
+                              selectedSubcategories.includes(t.name)
+                                ? "text-primary font-medium bg-primary/5"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                            )}
+                          >
+                            <span className="flex-1 truncate">{t.name}</span>
+                            <span className="text-[11px] text-muted-foreground shrink-0">{t.count}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </ScrollArea>
         </div>
