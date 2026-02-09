@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, Filter, X, LayoutGrid, List } from 'lucide-react';
+import { ChevronDown, X, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Product } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface FilterSidebarProps {
@@ -21,12 +20,6 @@ interface FilterSidebarProps {
   onClearFilters: () => void;
 }
 
-interface CategoryNode {
-  name: string;
-  count: number;
-  subcategories: Map<string, number>;
-}
-
 export function FilterSidebar({
   products,
   selectedCategories,
@@ -41,358 +34,240 @@ export function FilterSidebar({
   onViewModeChange,
   onClearFilters,
 }: FilterSidebarProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['categories', 'manufacturers', 'types'])
-  );
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [searchCategory, setSearchCategory] = useState('');
-  const [searchManufacturer, setSearchManufacturer] = useState('');
-  const [searchType, setSearchType] = useState('');
+  const [expandedManufacturer, setExpandedManufacturer] = useState<string | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
-  // Build category tree
-  const categories = useMemo(() => {
-    const catMap = new Map<string, CategoryNode>();
-    
-    products.forEach((product) => {
-      const cat = product.category || 'Без категории';
-      
-      if (!catMap.has(cat)) {
-        catMap.set(cat, { name: cat, count: 0, subcategories: new Map() });
-      }
-      
-      const node = catMap.get(cat)!;
-      node.count++;
-      
-      if (product.subcategory) {
-        const currentCount = node.subcategories.get(product.subcategory) || 0;
-        node.subcategories.set(product.subcategory, currentCount + 1);
-      }
-    });
-    
-    return Array.from(catMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-  }, [products]);
+  const hasActiveFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || selectedTypes.length > 0 || selectedManufacturers.length > 0;
 
-  // Build types list (subcategory as "Type")
-  const types = useMemo(() => {
-    const typeMap = new Map<string, number>();
-    
+  // Build manufacturers with their categories
+  const manufacturerTree = useMemo(() => {
+    const tree = new Map<string, Map<string, Map<string, number>>>();
+
     products.forEach((product) => {
+      const producer = product.producer || 'Без производителя';
+      const category = product.category || 'Без категории';
       const type = product.subcategory;
+
+      if (!tree.has(producer)) tree.set(producer, new Map());
+      const catMap = tree.get(producer)!;
+      if (!catMap.has(category)) catMap.set(category, new Map());
+      const typeMap = catMap.get(category)!;
       if (type) {
         typeMap.set(type, (typeMap.get(type) || 0) + 1);
       }
     });
-    
-    return Array.from(typeMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+    return tree;
   }, [products]);
 
-  // Build manufacturers list (using producer field)
-  const manufacturers = useMemo(() => {
-    const mfMap = new Map<string, number>();
-    
-    products.forEach((product) => {
-      const mf = product.producer;
-      if (mf) {
-        mfMap.set(mf, (mfMap.get(mf) || 0) + 1);
-      }
+  // Get counts
+  const manufacturerCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    products.forEach(p => {
+      const key = p.producer || 'Без производителя';
+      counts.set(key, (counts.get(key) || 0) + 1);
     });
-    
-    return Array.from(mfMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    return counts;
   }, [products]);
 
-  const hasActiveFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || selectedTypes.length > 0 || selectedManufacturers.length > 0;
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    products.forEach(p => {
+      const key = p.category || 'Без категории';
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return counts;
+  }, [products]);
 
-  const toggleSection = (section: string) => {
-    const next = new Set(expandedSections);
-    if (next.has(section)) {
-      next.delete(section);
+  const sortedManufacturers = useMemo(() =>
+    Array.from(manufacturerTree.keys()).sort((a, b) => a.localeCompare(b, 'ru')),
+    [manufacturerTree]
+  );
+
+  const handleManufacturerClick = (mf: string) => {
+    if (expandedManufacturer === mf) {
+      setExpandedManufacturer(null);
     } else {
-      next.add(section);
+      setExpandedManufacturer(mf);
+      setExpandedCategory(null);
     }
-    setExpandedSections(next);
+    // Select/deselect manufacturer
+    const newMf = selectedManufacturers.includes(mf)
+      ? selectedManufacturers.filter(m => m !== mf)
+      : [mf];
+    onManufacturersChange(newMf);
+    onCategoriesChange([]);
+    onTypesChange([]);
   };
 
-  const toggleCategory = (category: string) => {
-    const next = new Set(expandedCategories);
-    if (next.has(category)) {
-      next.delete(category);
+  const handleCategoryClick = (cat: string) => {
+    if (expandedCategory === cat) {
+      setExpandedCategory(null);
     } else {
-      next.add(category);
+      setExpandedCategory(cat);
     }
-    setExpandedCategories(next);
+    const newCats = selectedCategories.includes(cat)
+      ? selectedCategories.filter(c => c !== cat)
+      : [cat];
+    onCategoriesChange(newCats);
+    onTypesChange([]);
   };
 
-  const handleCategoryToggle = (category: string) => {
-    const newCategories = selectedCategories.includes(category)
-      ? selectedCategories.filter(c => c !== category)
-      : [...selectedCategories, category];
-    onCategoriesChange(newCategories);
-  };
-
-  const handleSubcategoryToggle = (subcategory: string) => {
-    const newSubcategories = selectedSubcategories.includes(subcategory)
-      ? selectedSubcategories.filter(s => s !== subcategory)
-      : [...selectedSubcategories, subcategory];
-    onSubcategoriesChange(newSubcategories);
-  };
-
-  const handleManufacturerToggle = (manufacturer: string) => {
-    const newManufacturers = selectedManufacturers.includes(manufacturer)
-      ? selectedManufacturers.filter(m => m !== manufacturer)
-      : [...selectedManufacturers, manufacturer];
-    onManufacturersChange(newManufacturers);
-  };
-
-  const handleTypeToggle = (type: string) => {
+  const handleTypeClick = (type: string) => {
     const newTypes = selectedTypes.includes(type)
       ? selectedTypes.filter(t => t !== type)
-      : [...selectedTypes, type];
+      : [type];
     onTypesChange(newTypes);
   };
 
-  const filteredCategories = categories.filter(cat => 
-    cat.name.toLowerCase().includes(searchCategory.toLowerCase())
-  );
+  // Get categories for current expanded manufacturer
+  const currentCategories = useMemo(() => {
+    if (!expandedManufacturer) return [];
+    const catMap = manufacturerTree.get(expandedManufacturer);
+    if (!catMap) return [];
+    return Array.from(catMap.keys()).sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [expandedManufacturer, manufacturerTree]);
 
-  const filteredManufacturers = manufacturers.filter(mf => 
-    mf.name.toLowerCase().includes(searchManufacturer.toLowerCase())
-  );
+  // Get types for current expanded category
+  const currentTypes = useMemo(() => {
+    if (!expandedManufacturer || !expandedCategory) return [];
+    const catMap = manufacturerTree.get(expandedManufacturer);
+    if (!catMap) return [];
+    const typeMap = catMap.get(expandedCategory);
+    if (!typeMap) return [];
+    return Array.from(typeMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  }, [expandedManufacturer, expandedCategory, manufacturerTree]);
 
-  const filteredTypes = types.filter(t => 
-    t.name.toLowerCase().includes(searchType.toLowerCase())
-  );
-
-  const SidebarContent = () => (
-    <div className="space-y-4">
-      {/* View Mode Toggle */}
-      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-        <span className="text-sm font-medium flex-1">Вид:</span>
-        <Button
-          variant={viewMode === 'grid' ? 'default' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => onViewModeChange('grid')}
-        >
-          <LayoutGrid className="h-4 w-4" />
-        </Button>
-        <Button
-          variant={viewMode === 'compact' ? 'default' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => onViewModeChange('compact')}
-        >
-          <List className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Clear Filters */}
-      {hasActiveFilters && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={onClearFilters}
-        >
-          <X className="h-4 w-4 mr-2" />
-          Сбросить фильтры ({selectedCategories.length + selectedSubcategories.length + selectedTypes.length + selectedManufacturers.length})
-        </Button>
-      )}
-
-      {/* Categories Section */}
-      <div className="border border-border rounded-lg overflow-hidden">
-        <button
-          className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
-          onClick={() => toggleSection('categories')}
-        >
-          <span className="font-semibold text-sm">Категории</span>
-          {expandedSections.has('categories') ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </button>
-        
-        {expandedSections.has('categories') && (
-          <div className="p-2">
-            <input
-              type="text"
-              placeholder="Поиск категории..."
-              value={searchCategory}
-              onChange={(e) => setSearchCategory(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-md mb-2 bg-background"
-            />
-            <ScrollArea className="h-[250px]">
-              <div className="space-y-1 pr-3">
-                {filteredCategories.map((cat) => (
-                  <div key={cat.name}>
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id={`cat-${cat.name}`}
-                        checked={selectedCategories.includes(cat.name)}
-                        onCheckedChange={() => handleCategoryToggle(cat.name)}
-                      />
-                      <label
-                        htmlFor={`cat-${cat.name}`}
-                        className="flex-1 text-sm cursor-pointer py-1"
-                      >
-                        {cat.name}
-                        <span className="text-muted-foreground ml-1">({cat.count})</span>
-                      </label>
-                      {cat.subcategories.size > 0 && (
-                        <button
-                          className="p-1 hover:bg-muted rounded"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleCategory(cat.name);
-                          }}
-                        >
-                          {expandedCategories.has(cat.name) ? (
-                            <ChevronDown className="h-3 w-3" />
-                          ) : (
-                            <ChevronRight className="h-3 w-3" />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                    
-                    {/* Subcategories */}
-                    {expandedCategories.has(cat.name) && cat.subcategories.size > 0 && (
-                      <div className="ml-6 mt-1 space-y-1 border-l-2 border-muted pl-3">
-                        {Array.from(cat.subcategories.entries()).map(([subName, subCount]) => (
-                          <div key={subName} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`sub-${subName}`}
-                              checked={selectedSubcategories.includes(subName)}
-                              onCheckedChange={() => handleSubcategoryToggle(subName)}
-                            />
-                            <label
-                              htmlFor={`sub-${subName}`}
-                              className="text-sm cursor-pointer text-muted-foreground hover:text-foreground py-0.5"
-                            >
-                              {subName}
-                              <span className="ml-1">({subCount})</span>
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-      </div>
-
-      {/* Manufacturers Section */}
-      <div className="border border-border rounded-lg overflow-hidden">
-        <button
-          className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
-          onClick={() => toggleSection('manufacturers')}
-        >
-          <span className="font-semibold text-sm">Производители</span>
-          {expandedSections.has('manufacturers') ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </button>
-        
-        {expandedSections.has('manufacturers') && (
-          <div className="p-2">
-            <input
-              type="text"
-              placeholder="Поиск производителя..."
-              value={searchManufacturer}
-              onChange={(e) => setSearchManufacturer(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-md mb-2 bg-background"
-            />
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-1 pr-3">
-                {filteredManufacturers.map((mf) => (
-                  <div key={mf.name} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`mf-${mf.name}`}
-                      checked={selectedManufacturers.includes(mf.name)}
-                      onCheckedChange={() => handleManufacturerToggle(mf.name)}
-                    />
-                    <label
-                      htmlFor={`mf-${mf.name}`}
-                      className="flex-1 text-sm cursor-pointer py-1"
-                    >
-                      {mf.name}
-                      <span className="text-muted-foreground ml-1">({mf.count})</span>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-      </div>
-
-      {/* Types Section */}
-      <div className="border border-border rounded-lg overflow-hidden">
-        <button
-          className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
-          onClick={() => toggleSection('types')}
-        >
-          <span className="font-semibold text-sm">Тип</span>
-          {expandedSections.has('types') ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </button>
-        
-        {expandedSections.has('types') && (
-          <div className="p-2">
-            <input
-              type="text"
-              placeholder="Поиск типа..."
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-md mb-2 bg-background"
-            />
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-1 pr-3">
-                {filteredTypes.map((t) => (
-                  <div key={t.name} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`type-${t.name}`}
-                      checked={selectedTypes.includes(t.name)}
-                      onCheckedChange={() => handleTypeToggle(t.name)}
-                    />
-                    <label
-                      htmlFor={`type-${t.name}`}
-                      className="flex-1 text-sm cursor-pointer py-1"
-                    >
-                      {t.name}
-                      <span className="text-muted-foreground ml-1">({t.count})</span>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Desktop only - mobile uses MobileFilters component
   return (
-    <aside className="hidden lg:block w-72 shrink-0">
-      <div className="sticky top-24 bg-card border border-border rounded-lg p-4">
-        <h2 className="font-semibold flex items-center gap-2 mb-4">
-          <Filter className="h-5 w-5" />
-          Фильтры
-        </h2>
-        <SidebarContent />
+    <aside className="hidden lg:block w-64 shrink-0">
+      <div className="sticky top-24 bg-card border border-border rounded-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="font-bold text-base">Каталог</h2>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onViewModeChange('grid')}
+              className={cn(
+                "p-1.5 rounded-md transition-colors",
+                viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onViewModeChange('compact')}
+              className={cn(
+                "p-1.5 rounded-md transition-colors",
+                viewMode === 'compact' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Clear filters */}
+        {hasActiveFilters && (
+          <div className="px-4 pt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={onClearFilters}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Сбросить фильтры
+            </Button>
+          </div>
+        )}
+
+        {/* Accordion menu */}
+        <ScrollArea className="h-[calc(100vh-200px)]">
+          <nav className="py-2">
+            {sortedManufacturers.map((mf) => {
+              const isExpanded = expandedManufacturer === mf;
+              const isSelected = selectedManufacturers.includes(mf);
+              const count = manufacturerCounts.get(mf) || 0;
+
+              return (
+                <div key={mf}>
+                  {/* Manufacturer row */}
+                  <button
+                    onClick={() => handleManufacturerClick(mf)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-4 py-3 text-left transition-colors border-l-3",
+                      isSelected
+                        ? "bg-primary/10 border-l-primary font-semibold text-foreground"
+                        : "border-l-transparent hover:bg-muted/50 text-foreground/80"
+                    )}
+                  >
+                    <span className="text-sm truncate pr-2">{mf}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">{count}</span>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                        isExpanded && "rotate-180"
+                      )} />
+                    </div>
+                  </button>
+
+                  {/* Categories under manufacturer */}
+                  {isExpanded && currentCategories.length > 0 && (
+                    <div className="bg-muted/20">
+                      {currentCategories.map((cat) => {
+                        const isCatExpanded = expandedCategory === cat;
+                        const isCatSelected = selectedCategories.includes(cat);
+
+                        return (
+                          <div key={cat}>
+                            <button
+                              onClick={() => handleCategoryClick(cat)}
+                              className={cn(
+                                "w-full flex items-center justify-between pl-8 pr-4 py-2.5 text-left transition-colors",
+                                isCatSelected
+                                  ? "text-primary font-medium"
+                                  : "text-foreground/70 hover:text-foreground"
+                              )}
+                            >
+                              <span className="text-sm truncate pr-2">{cat}</span>
+                              <ChevronDown className={cn(
+                                "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0",
+                                isCatExpanded && "rotate-180"
+                              )} />
+                            </button>
+
+                            {/* Types under category */}
+                            {isCatExpanded && currentTypes.length > 0 && (
+                              <div className="bg-muted/10">
+                                {currentTypes.map((t) => (
+                                  <button
+                                    key={t.name}
+                                    onClick={() => handleTypeClick(t.name)}
+                                    className={cn(
+                                      "w-full text-left pl-12 pr-4 py-2 text-sm transition-colors",
+                                      selectedTypes.includes(t.name)
+                                        ? "text-primary font-medium"
+                                        : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                  >
+                                    {t.name}
+                                    <span className="ml-1 text-xs opacity-60">({t.count})</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        </ScrollArea>
       </div>
     </aside>
   );
