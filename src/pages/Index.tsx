@@ -31,50 +31,52 @@ const Index = () => {
     setCurrentPage(1);
   }, [selectedCategories, selectedSubcategories, selectedTypes, selectedManufacturers, searchQuery, itemsPerPage]);
 
+  // Seeded shuffle for search diversity
+  const shuffleArray = <T,>(arr: T[], seed: string): T[] => {
+    const result = [...arr];
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+      hash |= 0;
+    }
+    for (let i = result.length - 1; i > 0; i--) {
+      hash = ((hash << 5) - hash) + i;
+      hash |= 0;
+      const j = Math.abs(hash) % (i + 1);
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  };
+
   // Filter products
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      // Category filter (multi-select)
+    let result = products.filter((product) => {
       if (selectedCategories.length > 0) {
         const productCategory = product.category || 'Без категории';
-        if (!selectedCategories.includes(productCategory)) {
-          return false;
-        }
+        if (!selectedCategories.includes(productCategory)) return false;
       }
-
-      // Subcategory filter (multi-select)
-      if (selectedSubcategories.length > 0 && (!product.subcategory || !selectedSubcategories.includes(product.subcategory))) {
-        return false;
-      }
-
-      // Type filter (uses subcategory field)
-      if (selectedTypes.length > 0 && (!product.subcategory || !selectedTypes.includes(product.subcategory))) {
-        return false;
-      }
-
-      // Manufacturer filter (multi-select) - using producer field
+      if (selectedSubcategories.length > 0 && (!product.subcategory || !selectedSubcategories.includes(product.subcategory))) return false;
+      if (selectedTypes.length > 0 && (!product.subcategory || !selectedTypes.includes(product.subcategory))) return false;
       if (selectedManufacturers.length > 0) {
-        const productProducer = product.producer;
-        if (!productProducer || !selectedManufacturers.includes(productProducer)) {
-          return false;
-        }
+        if (!product.producer || !selectedManufacturers.includes(product.producer)) return false;
       }
-
-      // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const name = (product.name || '').toLowerCase();
         const category = (product.category || '').toLowerCase();
         const description = (product.description || '').toLowerCase();
         const producer = (product.producer || '').toLowerCase();
-        
-        if (!name.includes(query) && !category.includes(query) && !description.includes(query) && !producer.includes(query)) {
-          return false;
-        }
+        if (!name.includes(query) && !category.includes(query) && !description.includes(query) && !producer.includes(query)) return false;
       }
-
       return true;
     });
+
+    // Shuffle search results for variety
+    if (searchQuery && result.length > 10) {
+      result = shuffleArray(result, searchQuery);
+    }
+
+    return result;
   }, [products, selectedCategories, selectedSubcategories, selectedTypes, selectedManufacturers, searchQuery]);
 
   // Pagination

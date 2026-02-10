@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { ChevronDown, X, LayoutGrid, List } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { ChevronDown, ChevronRight, X, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Product } from '@/lib/supabase';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,6 +19,26 @@ interface MobileFiltersProps {
 }
 
 type OpenPanel = 'manufacturers' | 'categories' | null;
+
+function AnimatedPanel({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (ref.current) {
+      setHeight(open ? ref.current.scrollHeight : 0);
+    }
+  }, [open, children]);
+
+  return (
+    <div
+      style={{ height: open ? height : 0 }}
+      className="overflow-hidden transition-all duration-300 ease-in-out"
+    >
+      <div ref={ref}>{children}</div>
+    </div>
+  );
+}
 
 export function MobileFilters({
   products,
@@ -73,7 +93,6 @@ export function MobileFilters({
           .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
       }));
 
-    // Categories with subcategories first
     return result.sort((a, b) => {
       if (a.hasTypes && !b.hasTypes) return -1;
       if (!a.hasTypes && b.hasTypes) return 1;
@@ -91,8 +110,10 @@ export function MobileFilters({
     setExpandedCategory(null);
   };
 
-  const handleCategoryClick = (name: string) => {
-    setExpandedCategory(expandedCategory === name ? null : name);
+  const handleCategoryClick = (name: string, hasTypes: boolean) => {
+    if (hasTypes) {
+      setExpandedCategory(expandedCategory === name ? null : name);
+    }
     const next = selectedCategories.includes(name)
       ? selectedCategories.filter(c => c !== name)
       : [name];
@@ -135,7 +156,7 @@ export function MobileFilters({
           </button>
         </div>
 
-        {/* Category chip — NOW FIRST */}
+        {/* Category chip */}
         <button
           onClick={() => setOpenPanel(openPanel === 'categories' ? null : 'categories')}
           className={cn(
@@ -154,7 +175,7 @@ export function MobileFilters({
           <ChevronDown className={cn("h-4 w-4 transition-transform", openPanel === 'categories' && "rotate-180")} />
         </button>
 
-        {/* Manufacturer chip — NOW SECOND */}
+        {/* Manufacturer chip */}
         <button
           onClick={() => setOpenPanel(openPanel === 'manufacturers' ? null : 'manufacturers')}
           className={cn(
@@ -189,7 +210,7 @@ export function MobileFilters({
         )}
       </div>
 
-      {/* Categories accordion panel — NOW FIRST */}
+      {/* Categories panel */}
       {openPanel === 'categories' && (
         <div className="border-t border-border bg-background">
           <ScrollArea className="h-72">
@@ -201,14 +222,28 @@ export function MobileFilters({
                 return (
                   <div key={cat.name}>
                     <button
-                      onClick={() => handleCategoryClick(cat.name)}
+                      onClick={() => handleCategoryClick(cat.name, cat.hasTypes)}
                       className={cn(
-                        "w-full flex items-center gap-2 px-4 py-3 text-left transition-all",
+                        "w-full flex items-center gap-2.5 px-4 py-3 text-left transition-all",
                         isSelected
                           ? "bg-primary/10 text-foreground"
                           : "hover:bg-muted/40 text-foreground/90"
                       )}
                     >
+                      {/* Arrow for expandable */}
+                      {cat.hasTypes ? (
+                        <div className={cn(
+                          "flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-colors",
+                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}>
+                          <ChevronRight className={cn(
+                            "h-4 w-4 transition-transform duration-300",
+                            isExpanded && "rotate-90"
+                          )} />
+                        </div>
+                      ) : (
+                        <div className="w-6 h-6 shrink-0" />
+                      )}
                       <span className={cn(
                         "flex-1 truncate",
                         isSelected ? "font-bold text-[15px]" : "font-semibold text-sm"
@@ -216,21 +251,15 @@ export function MobileFilters({
                         {cat.name}
                       </span>
                       <span className={cn(
-                        "text-xs px-2 py-0.5 rounded-full shrink-0 font-medium",
+                        "text-xs px-2 py-0.5 rounded-full shrink-0 font-semibold",
                         isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                       )}>
                         {cat.count}
                       </span>
-                      {cat.hasTypes && (
-                        <ChevronDown className={cn(
-                          "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                          isExpanded && "rotate-180"
-                        )} />
-                      )}
                     </button>
 
-                    {isExpanded && cat.types.length > 0 && (
-                      <div className="border-l-2 border-primary/20 ml-4 bg-muted/10">
+                    <AnimatedPanel open={isExpanded && cat.types.length > 0}>
+                      <div className="border-l-2 border-primary/30 ml-7 bg-muted/10">
                         {cat.types.map(t => (
                           <button
                             key={t.name}
@@ -238,16 +267,16 @@ export function MobileFilters({
                             className={cn(
                               "w-full flex items-center gap-2 pl-4 pr-4 py-2.5 text-left transition-colors",
                               selectedSubcategories.includes(t.name)
-                                ? "text-primary font-medium bg-primary/5"
+                                ? "text-primary font-semibold bg-primary/5"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                             )}
                           >
                             <span className="flex-1 truncate text-sm">{t.name}</span>
-                            <span className="text-xs text-muted-foreground shrink-0">{t.count}</span>
+                            <span className="text-xs text-muted-foreground shrink-0 bg-muted px-2 py-0.5 rounded-full">{t.count}</span>
                           </button>
                         ))}
                       </div>
-                    )}
+                    </AnimatedPanel>
                   </div>
                 );
               })}

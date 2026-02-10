@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { ChevronDown, X, LayoutGrid, List, Search } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { ChevronDown, ChevronRight, X, LayoutGrid, List, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Product } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,26 @@ interface CategoryNode {
   count: number;
   hasTypes: boolean;
   types: { name: string; count: number }[];
+}
+
+function AnimatedPanel({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (ref.current) {
+      setHeight(open ? ref.current.scrollHeight : 0);
+    }
+  }, [open, children]);
+
+  return (
+    <div
+      style={{ height: open ? height : 0 }}
+      className="overflow-hidden transition-all duration-300 ease-in-out"
+    >
+      <div ref={ref}>{children}</div>
+    </div>
+  );
 }
 
 export function FilterSidebar({
@@ -88,7 +108,6 @@ export function FilterSidebar({
         .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
     }));
 
-    // Sort: categories with subcategories first, then alphabetically
     return result.sort((a, b) => {
       if (a.hasTypes && !b.hasTypes) return -1;
       if (!a.hasTypes && b.hasTypes) return 1;
@@ -106,8 +125,10 @@ export function FilterSidebar({
     setExpandedCategory(null);
   };
 
-  const handleCategoryClick = (name: string) => {
-    setExpandedCategory(expandedCategory === name ? null : name);
+  const handleCategoryClick = (name: string, hasTypes: boolean) => {
+    if (hasTypes) {
+      setExpandedCategory(expandedCategory === name ? null : name);
+    }
     const next = selectedCategories.includes(name)
       ? selectedCategories.filter(c => c !== name)
       : [name];
@@ -123,7 +144,7 @@ export function FilterSidebar({
   };
 
   return (
-    <aside className="hidden lg:block w-64 shrink-0">
+    <aside className="hidden lg:block w-72 shrink-0">
       <div className="sticky top-24 space-y-4">
         {/* View mode + clear */}
         <div className="bg-card border border-border rounded-xl p-3 flex items-center justify-between">
@@ -154,12 +175,12 @@ export function FilterSidebar({
           )}
         </div>
 
-        {/* Categories accordion — NOW FIRST */}
+        {/* Categories */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="px-4 py-3 font-bold text-base border-b border-border">
+          <div className="px-4 py-3.5 font-bold text-base border-b border-border">
             Категории
           </div>
-          <ScrollArea className="h-[calc(100vh-520px)] min-h-[200px]">
+          <ScrollArea className="h-[calc(100vh-480px)] min-h-[240px]">
             <nav className="py-1">
               {categoryTree.map(cat => {
                 const isExpanded = expandedCategory === cat.name;
@@ -168,14 +189,28 @@ export function FilterSidebar({
                 return (
                   <div key={cat.name}>
                     <button
-                      onClick={() => handleCategoryClick(cat.name)}
+                      onClick={() => handleCategoryClick(cat.name, cat.hasTypes)}
                       className={cn(
-                        "w-full flex items-center gap-2 px-4 py-3 text-left transition-all group",
+                        "w-full flex items-center gap-2.5 px-4 py-3.5 text-left transition-all group",
                         isSelected
                           ? "bg-primary/10 text-foreground"
                           : "hover:bg-muted/40 text-foreground/90"
                       )}
                     >
+                      {/* Arrow indicator for expandable categories */}
+                      {cat.hasTypes ? (
+                        <div className={cn(
+                          "flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-colors",
+                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary"
+                        )}>
+                          <ChevronRight className={cn(
+                            "h-4 w-4 transition-transform duration-300",
+                            isExpanded && "rotate-90"
+                          )} />
+                        </div>
+                      ) : (
+                        <div className="w-6 h-6 shrink-0" />
+                      )}
                       <span className={cn(
                         "flex-1 truncate",
                         isSelected ? "font-bold text-[15px]" : "font-semibold text-sm"
@@ -183,39 +218,33 @@ export function FilterSidebar({
                         {cat.name}
                       </span>
                       <span className={cn(
-                        "text-xs px-2 py-0.5 rounded-full shrink-0 font-medium",
+                        "text-xs px-2.5 py-1 rounded-full shrink-0 font-semibold",
                         isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                       )}>
                         {cat.count}
                       </span>
-                      {cat.hasTypes && (
-                        <ChevronDown className={cn(
-                          "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                          isExpanded && "rotate-180"
-                        )} />
-                      )}
                     </button>
 
-                    {/* Subcategories (types) */}
-                    {isExpanded && cat.types.length > 0 && (
-                      <div className="border-l-2 border-primary/20 ml-4">
+                    {/* Animated subcategories */}
+                    <AnimatedPanel open={isExpanded && cat.types.length > 0}>
+                      <div className="border-l-2 border-primary/30 ml-7 bg-muted/5">
                         {cat.types.map(t => (
                           <button
                             key={t.name}
                             onClick={() => handleTypeClick(t.name)}
                             className={cn(
-                              "w-full flex items-center gap-2 pl-4 pr-4 py-2 text-left transition-colors",
+                              "w-full flex items-center gap-2 pl-4 pr-4 py-2.5 text-left transition-colors",
                               selectedTypes.includes(t.name)
-                                ? "text-primary font-medium bg-primary/5"
+                                ? "text-primary font-semibold bg-primary/5"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                             )}
                           >
                             <span className="flex-1 truncate text-sm">{t.name}</span>
-                            <span className="text-xs text-muted-foreground shrink-0">{t.count}</span>
+                            <span className="text-xs text-muted-foreground shrink-0 bg-muted px-2 py-0.5 rounded-full">{t.count}</span>
                           </button>
                         ))}
                       </div>
-                    )}
+                    </AnimatedPanel>
                   </div>
                 );
               })}
@@ -223,14 +252,14 @@ export function FilterSidebar({
           </ScrollArea>
         </div>
 
-        {/* Manufacturers — NOW SECOND */}
+        {/* Manufacturers */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <button
             onClick={() => setManufacturersExpanded(!manufacturersExpanded)}
-            className="w-full flex items-center justify-between px-4 py-3 font-bold text-base hover:bg-muted/30 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3.5 font-bold text-base hover:bg-muted/30 transition-colors"
           >
             <span>Производители</span>
-            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", manufacturersExpanded && "rotate-180")} />
+            <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform duration-300", manufacturersExpanded && "rotate-180")} />
           </button>
           {manufacturersExpanded && (
             <div className="border-t border-border">
