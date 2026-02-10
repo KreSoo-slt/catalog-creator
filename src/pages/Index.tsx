@@ -99,11 +99,32 @@ const Index = () => {
       ? selectedCategories[0]
       : 'Все товары';
 
+  // Breadcrumbs
+  const breadcrumbs = useMemo(() => {
+    const crumbs: { label: string; onClick?: () => void }[] = [
+      { label: 'Все товары', onClick: handleClearFilters },
+    ];
+    if (selectedManufacturers.length === 1) {
+      crumbs.push({ label: selectedManufacturers[0], onClick: () => { setSelectedCategories([]); setSelectedSubcategories([]); setSelectedTypes([]); } });
+    } else if (selectedManufacturers.length > 1) {
+      crumbs.push({ label: `${selectedManufacturers.length} производителей`, onClick: () => { setSelectedCategories([]); setSelectedSubcategories([]); setSelectedTypes([]); } });
+    }
+    if (selectedCategories.length === 1) {
+      crumbs.push({ label: selectedCategories[0], onClick: () => { setSelectedSubcategories([]); setSelectedTypes([]); } });
+    }
+    if (selectedTypes.length === 1) {
+      crumbs.push({ label: selectedTypes[0] });
+    } else if (selectedSubcategories.length === 1) {
+      crumbs.push({ label: selectedSubcategories[0] });
+    }
+    return crumbs;
+  }, [selectedManufacturers, selectedCategories, selectedTypes, selectedSubcategories]);
+
   return (
     <div className="min-h-screen flex flex-col bg-background overflow-x-hidden">
       <Header />
 
-      {/* Mobile filters - static Kaspi-style */}
+      {/* Mobile filters */}
       <MobileFilters
         products={products}
         selectedCategories={selectedCategories}
@@ -119,6 +140,27 @@ const Index = () => {
 
       <main className="flex-1">
         <div className="container py-4 md:py-6">
+          {/* Breadcrumbs */}
+          {breadcrumbs.length > 1 && (
+            <nav className="flex items-center gap-1 text-sm mb-4 flex-wrap">
+              {breadcrumbs.map((crumb, i) => (
+                <span key={i} className="flex items-center gap-1">
+                  {i > 0 && <span className="text-muted-foreground mx-1">/</span>}
+                  {crumb.onClick && i < breadcrumbs.length - 1 ? (
+                    <button
+                      onClick={crumb.onClick}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {crumb.label}
+                    </button>
+                  ) : (
+                    <span className="font-medium text-foreground">{crumb.label}</span>
+                  )}
+                </span>
+              ))}
+            </nav>
+          )}
+
           {/* Page header - desktop only */}
           <div className="hidden md:flex flex-col gap-4 mb-6">
             <div>
