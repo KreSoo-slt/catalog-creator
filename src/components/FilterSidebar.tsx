@@ -25,6 +25,7 @@ interface FilterSidebarProps {
 interface CategoryNode {
   name: string;
   count: number;
+  hasTypes: boolean;
   types: { name: string; count: number }[];
 }
 
@@ -48,7 +49,6 @@ export function FilterSidebar({
 
   const hasActiveFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || selectedTypes.length > 0 || selectedManufacturers.length > 0;
 
-  // Manufacturers list
   const manufacturers = useMemo(() => {
     const map = new Map<string, number>();
     products.forEach(p => {
@@ -63,11 +63,8 @@ export function FilterSidebar({
     m.name.toLowerCase().includes(manufacturerSearch.toLowerCase())
   );
 
-  // Category tree with types (subcategories)
   const categoryTree = useMemo(() => {
     const map = new Map<string, { count: number; types: Map<string, number> }>();
-
-    // Filter by selected manufacturers
     const filtered = selectedManufacturers.length > 0
       ? products.filter(p => p.producer && selectedManufacturers.includes(p.producer))
       : products;
@@ -85,12 +82,18 @@ export function FilterSidebar({
     const result: CategoryNode[] = Array.from(map.entries()).map(([name, data]) => ({
       name,
       count: data.count,
+      hasTypes: data.types.size > 0,
       types: Array.from(data.types.entries())
         .map(([n, c]) => ({ name: n, count: c }))
         .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
     }));
 
-    return result.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    // Sort: categories with subcategories first, then alphabetically
+    return result.sort((a, b) => {
+      if (a.hasTypes && !b.hasTypes) return -1;
+      if (!a.hasTypes && b.hasTypes) return 1;
+      return a.name.localeCompare(b.name, 'ru');
+    });
   }, [products, selectedManufacturers]);
 
   const handleManufacturerToggle = (name: string) => {
@@ -98,16 +101,13 @@ export function FilterSidebar({
       ? selectedManufacturers.filter(m => m !== name)
       : [...selectedManufacturers, name];
     onManufacturersChange(next);
-    // Reset dependent filters
     onCategoriesChange([]);
     onTypesChange([]);
     setExpandedCategory(null);
   };
 
   const handleCategoryClick = (name: string) => {
-    // Toggle expand
     setExpandedCategory(expandedCategory === name ? null : name);
-    // Toggle selection
     const next = selectedCategories.includes(name)
       ? selectedCategories.filter(c => c !== name)
       : [name];
@@ -154,11 +154,80 @@ export function FilterSidebar({
           )}
         </div>
 
-        {/* Manufacturers */}
+        {/* Categories accordion — NOW FIRST */}
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-4 py-3 font-bold text-base border-b border-border">
+            Категории
+          </div>
+          <ScrollArea className="h-[calc(100vh-520px)] min-h-[200px]">
+            <nav className="py-1">
+              {categoryTree.map(cat => {
+                const isExpanded = expandedCategory === cat.name;
+                const isSelected = selectedCategories.includes(cat.name);
+
+                return (
+                  <div key={cat.name}>
+                    <button
+                      onClick={() => handleCategoryClick(cat.name)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-4 py-3 text-left transition-all group",
+                        isSelected
+                          ? "bg-primary/10 text-foreground"
+                          : "hover:bg-muted/40 text-foreground/90"
+                      )}
+                    >
+                      <span className={cn(
+                        "flex-1 truncate",
+                        isSelected ? "font-bold text-[15px]" : "font-semibold text-sm"
+                      )}>
+                        {cat.name}
+                      </span>
+                      <span className={cn(
+                        "text-xs px-2 py-0.5 rounded-full shrink-0 font-medium",
+                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                      )}>
+                        {cat.count}
+                      </span>
+                      {cat.hasTypes && (
+                        <ChevronDown className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
+                          isExpanded && "rotate-180"
+                        )} />
+                      )}
+                    </button>
+
+                    {/* Subcategories (types) */}
+                    {isExpanded && cat.types.length > 0 && (
+                      <div className="border-l-2 border-primary/20 ml-4">
+                        {cat.types.map(t => (
+                          <button
+                            key={t.name}
+                            onClick={() => handleTypeClick(t.name)}
+                            className={cn(
+                              "w-full flex items-center gap-2 pl-4 pr-4 py-2 text-left transition-colors",
+                              selectedTypes.includes(t.name)
+                                ? "text-primary font-medium bg-primary/5"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                            )}
+                          >
+                            <span className="flex-1 truncate text-sm">{t.name}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{t.count}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </ScrollArea>
+        </div>
+
+        {/* Manufacturers — NOW SECOND */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <button
             onClick={() => setManufacturersExpanded(!manufacturersExpanded)}
-            className="w-full flex items-center justify-between px-4 py-3 font-bold text-sm hover:bg-muted/30 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3 font-bold text-base hover:bg-muted/30 transition-colors"
           >
             <span>Производители</span>
             <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", manufacturersExpanded && "rotate-180")} />
@@ -182,9 +251,9 @@ export function FilterSidebar({
                     <label
                       key={mf.name}
                       className={cn(
-                        "flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-sm",
+                        "flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors",
                         selectedManufacturers.includes(mf.name)
-                          ? "bg-primary/10 text-foreground"
+                          ? "bg-primary/10 text-foreground font-medium"
                           : "hover:bg-muted/50 text-foreground/80"
                       )}
                     >
@@ -193,7 +262,7 @@ export function FilterSidebar({
                         onCheckedChange={() => handleManufacturerToggle(mf.name)}
                         className="shrink-0"
                       />
-                      <span className="flex-1 truncate">{mf.name}</span>
+                      <span className="flex-1 truncate text-sm">{mf.name}</span>
                       <span className="text-xs text-muted-foreground shrink-0">{mf.count}</span>
                     </label>
                   ))}
@@ -201,70 +270,6 @@ export function FilterSidebar({
               </ScrollArea>
             </div>
           )}
-        </div>
-
-        {/* Categories accordion */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="px-4 py-3 font-bold text-sm border-b border-border">
-            Категории
-          </div>
-          <ScrollArea className="h-[calc(100vh-480px)] min-h-[200px]">
-            <nav className="py-1">
-              {categoryTree.map(cat => {
-                const isExpanded = expandedCategory === cat.name;
-                const isSelected = selectedCategories.includes(cat.name);
-
-                return (
-                  <div key={cat.name}>
-                    <button
-                      onClick={() => handleCategoryClick(cat.name)}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm transition-all group",
-                        isSelected
-                          ? "bg-primary/10 font-semibold text-foreground border-l-[3px] border-l-primary"
-                          : "hover:bg-muted/40 text-foreground/80 border-l-[3px] border-l-transparent"
-                      )}
-                    >
-                      <span className="flex-1 truncate">{cat.name}</span>
-                      <span className={cn(
-                        "text-[11px] px-1.5 py-0.5 rounded-full shrink-0",
-                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      )}>
-                        {cat.count}
-                      </span>
-                      {cat.types.length > 0 && (
-                        <ChevronDown className={cn(
-                          "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0",
-                          isExpanded && "rotate-180"
-                        )} />
-                      )}
-                    </button>
-
-                    {/* Types (subcategories) */}
-                    {isExpanded && cat.types.length > 0 && (
-                      <div className="bg-muted/20 border-l-[3px] border-l-primary/30 ml-0">
-                        {cat.types.map(t => (
-                          <button
-                            key={t.name}
-                            onClick={() => handleTypeClick(t.name)}
-                            className={cn(
-                              "w-full flex items-center gap-2 pl-8 pr-4 py-2 text-left text-sm transition-colors",
-                              selectedTypes.includes(t.name)
-                                ? "text-primary font-medium bg-primary/5"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                            )}
-                          >
-                            <span className="flex-1 truncate">{t.name}</span>
-                            <span className="text-[11px] text-muted-foreground shrink-0">{t.count}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </nav>
-          </ScrollArea>
         </div>
       </div>
     </aside>
