@@ -11,7 +11,7 @@ export const siteConfig = {
     phone: '+7 (778) 085-54-78',
     phoneRaw: '+77780855478',
     whatsapp: '77780855478',
-    email: 'info@paidaall.kz',
+    email: 'paidaall.kz@gmail.com',
     address: 'г. Караганда',
     city: 'Караганда',
     instagram: '',
@@ -33,7 +33,6 @@ export const siteConfig = {
     methods: [
       { name: 'Kaspi перевод', description: 'Перевод на Kaspi' },
       { name: 'Безналичный расчёт', description: 'Для юридических лиц' },
-    ],
   },
 
   about: {
