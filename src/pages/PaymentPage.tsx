@@ -16,12 +16,8 @@ const PaymentPage = () => {
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <Banknote className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-xl font-semibold">Наличными</h2>
-            </div>
-            <p className="text-muted-foreground">
-              Оплата наличными при получении товара курьеру или в пункте самовывоза.
-            </p>
-          </div>
+             
+       
 
           <div className="p-6 border border-border rounded-lg bg-card">
             <div className="flex items-center gap-3 mb-4">
@@ -29,10 +25,7 @@ const PaymentPage = () => {
                 <CreditCard className="h-6 w-6 text-primary" />
               </div>
               <h2 className="text-xl font-semibold">Картой</h2>
-            </div>
-            <p className="text-muted-foreground">
-              Оплата банковской картой при получении через терминал.
-            </p>
+  
           </div>
 
           <div className="p-6 border border-border rounded-lg bg-card">
@@ -43,7 +36,7 @@ const PaymentPage = () => {
               <h2 className="text-xl font-semibold">Kaspi перевод</h2>
             </div>
             <p className="text-muted-foreground">
-              Перевод на Kaspi Gold перед доставкой или самовывозом.
+              Перевод на Kaspi.
             </p>
           </div>
 
@@ -55,7 +48,7 @@ const PaymentPage = () => {
               <h2 className="text-xl font-semibold">Безналичный расчёт</h2>
             </div>
             <p className="text-muted-foreground">
-              Для юридических лиц. Оплата по счёту с НДС или без НДС.
+              Для юридических лиц. Оплата по счёту с ЭСФ.
             </p>
           </div>
         </div>
