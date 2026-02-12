@@ -10,7 +10,8 @@ interface ProductCardProps {
   viewMode?: 'grid' | 'compact';
 }
 
-const formatPrice = (price: number) => {
+const formatPrice = (price: number | null | undefined) => {
+  if (!price && price !== 0) return 'Цена не указана';
   return price.toLocaleString('ru-RU') + ' ₸';
 };
 
