@@ -40,7 +40,7 @@ const AboutPage = () => {
                 <h2 className="text-xl font-semibold">Клиенты</h2>
               </div>
               <p className="text-muted-foreground">
-                Работаем с розничными магазинами, ИП и крупными торговыми сетями 
+                Работаем с розничными магазинами, ИП, оптовыми клиентами
                 по всему Казахстану.
               </p>
             </div>
@@ -53,8 +53,8 @@ const AboutPage = () => {
                 <h2 className="text-xl font-semibold">Доставка</h2>
               </div>
               <p className="text-muted-foreground">
-                Собственная логистика обеспечивает быструю и надёжную доставку 
-                товаров по {siteConfig.contacts.city} и области.
+                Логистика через транспортные компании и InDriver обеспечивает быструю и надёжную доставку 
+                товаров по {siteConfig.contacts.city} и Казахстану.
               </p>
             </div>
 
@@ -77,7 +77,6 @@ const AboutPage = () => {
             <ul className="space-y-2 text-muted-foreground">
               <li>✓ Широкий ассортимент — более 2000 наименований</li>
               <li>✓ Конкурентные оптовые цены</li>
-              <li>✓ Быстрая доставка по городу</li>
               <li>✓ Удобные способы оплаты</li>
               <li>✓ Индивидуальный подход к каждому клиенту</li>
             </ul>
