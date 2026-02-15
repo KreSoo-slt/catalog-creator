@@ -19,16 +19,18 @@ const translitMap: Record<string, string> = {
 export function generateSlug(name: string, id: string): string {
   if (!name) return id;
   
-  const slug = name
+  const transliterated = name
     .toLowerCase()
     .split('')
     .map(char => translitMap[char] || char)
     .join('')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .substring(0, 100);
+    .substring(0, 80);
   
-  return slug || id;
+  // Always append short id for uniqueness
+  const shortId = id.substring(0, 8);
+  return transliterated ? `${transliterated}-${shortId}` : id;
 }
 
 export interface Product {
@@ -60,8 +62,7 @@ export async function fetchAllProducts(): Promise<Product[]> {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .range(from, to)
-      .order('order', { ascending: true, nullsFirst: false });
+      .range(from, to);
 
     if (error) {
       console.error('Error fetching products:', error);
@@ -77,18 +78,24 @@ export async function fetchAllProducts(): Promise<Product[]> {
     }
   }
 
-  // Автогенерация slug для товаров без slug
+  // Filter archived, generate slugs, sort by order (low order = top)
   return allProducts
     .filter(p => !p.archived)
     .map(p => ({
       ...p,
       slug: p.slug || generateSlug(p.name, p.id)
-    }));
+    }))
+    .sort((a, b) => {
+      // Products with order come first (lower number = higher priority)
+      const aOrder = a.order ?? 999999;
+      const bOrder = b.order ?? 999999;
+      return aOrder - bOrder;
+    });
 }
 
-// Fetch product by slug (с поддержкой автогенерированных slug)
+// Fetch product by slug
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
-  // Сначала ищем по slug в базе
+  // First try exact match in DB
   const { data, error } = await supabase
     .from('products')
     .select('*')
@@ -107,7 +114,23 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
     };
   }
 
-  // Если не нашли по slug, ищем по id (для автогенерированных slug)
+  // Try to find by generated slug - extract short id from end of slug
+  const idPart = slug.split('-').pop();
+  if (idPart && idPart.length === 8) {
+    const { data: candidates } = await supabase
+      .from('products')
+      .select('*')
+      .ilike('id', `${idPart}%`);
+
+    if (candidates) {
+      const product = candidates.find(p => generateSlug(p.name, p.id) === slug);
+      if (product) {
+        return { ...product, slug: generateSlug(product.name, product.id) };
+      }
+    }
+  }
+
+  // Fallback: search all non-archived products
   const { data: allProducts } = await supabase
     .from('products')
     .select('*')
@@ -116,10 +139,7 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
   if (allProducts) {
     const product = allProducts.find(p => generateSlug(p.name, p.id) === slug);
     if (product) {
-      return {
-        ...product,
-        slug: generateSlug(product.name, product.id)
-      };
+      return { ...product, slug: generateSlug(product.name, product.id) };
     }
   }
 
