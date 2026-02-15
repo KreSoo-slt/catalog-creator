@@ -10,8 +10,8 @@ import { formatPrice } from '@/config/siteConfig';
 import { OptimizedImage } from '@/components/OptimizedImage';
 
 const ProductPage = () => {
-  const { slug } = useParams<{ slug: string }>();
-  const { data: product, isLoading, error } = useProduct(slug);
+  const { id } = useParams<{ id: string }>();
+  const { data: product, isLoading, error } = useProduct(id);
   const { addItem } = useCart();
 
   if (isLoading) {

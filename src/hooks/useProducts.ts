@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchAllProducts, fetchProductBySlug, Product } from '@/lib/supabase';
+import { fetchAllProducts, fetchProductById, Product } from '@/lib/supabase';
 
 export type { Product };
 
@@ -17,13 +17,13 @@ export function useProducts() {
 }
 
 /**
- * Хук для получения одного товара по slug
+ * Хук для получения одного товара по id
  */
-export function useProduct(slug: string | undefined) {
+export function useProduct(id: string | undefined) {
   return useQuery({
-    queryKey: ['product', slug],
-    queryFn: () => slug ? fetchProductBySlug(slug) : null,
-    enabled: !!slug,
+    queryKey: ['product', id],
+    queryFn: () => (id ? fetchProductById(id) : null),
+    enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });
 }

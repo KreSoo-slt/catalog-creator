@@ -33,7 +33,7 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
     return (
       <article className="group bg-card rounded-lg border border-border overflow-hidden transition-all duration-200 hover:shadow-md hover:border-primary/20">
         <div className="flex items-center gap-3 p-3">
-          <Link to={`/product/${product.slug}`} className="w-16 h-16 rounded-md overflow-hidden shrink-0">
+          <Link to={`/product/${product.id}`} className="w-16 h-16 rounded-md overflow-hidden shrink-0">
             <OptimizedImage
               src={product.img}
               alt={product.name}
@@ -41,7 +41,7 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
               fallback="/placeholder.svg"
             />
           </Link>
-          <Link to={`/product/${product.slug}`} className="flex-1 min-w-0">
+          <Link to={`/product/${product.id}`} className="flex-1 min-w-0">
             <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
               {product.name}
             </h3>
@@ -72,7 +72,7 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
 
   return (
     <article className="group bg-card rounded-lg border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/20">
-      <Link to={`/product/${product.slug}`} className="block">
+      <Link to={`/product/${product.id}`} className="block">
         {/* Image */}
         <div className="relative aspect-square overflow-hidden">
           <OptimizedImage
