@@ -31,7 +31,6 @@ export const siteConfig = {
 
   payment: {
     methods: [
-      { name: 'Наличными', icon: 'banknote', description: 'Оплата наличными при получении товара курьеру или в пункте самовывоза.' },
       { name: 'Kaspi перевод', icon: 'smartphone', description: 'Перевод на Kaspi.' },
       { name: 'Безналичный расчёт', icon: 'building', description: 'Для юридических лиц. Оплата по счёту.' },
     ],
