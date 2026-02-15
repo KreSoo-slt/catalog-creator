@@ -27,7 +27,7 @@ const App = () => (
         <FloatingHomeButton />
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/product/:slug" element={<ProductPage />} />
+          <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/payment" element={<PaymentPage />} />
           <Route path="/delivery" element={<DeliveryPage />} />
           <Route path="/contacts" element={<ContactsPage />} />
